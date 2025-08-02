@@ -19,7 +19,7 @@ export class BesuTomlConfigFactory {
 # === CONFIGURACIÓN DE RED ===
 # Puerto P2P para descubrimiento de peers
 p2p-port=${P2P_PORT}
-p2p-host="${config.network.ip}"
+p2p-host="0.0.0.0"
 
 # Máximo número de peers (alto para bootnode)
 max-peers=100
@@ -30,14 +30,14 @@ p2p-enabled=true
 
 # === CONFIGURACIÓN DE DATOS ===
 # Directorio de datos (mínimo para bootnode)
-data-path="${config.options?.dataPath || './data/' + config.name}"
+data-path="/data/${config.name}/data"
 
 # Archivo génesis (requerido para validar red correcta)
-genesis-file="${config.options?.genesisPath || './genesis.json'}"
+genesis-file="/data/genesis.json"
 
 # === SINCRONIZACIÓN ===
 # Sincronización recomendada (SNAP en lugar de FAST deprecado)
-sync-mode="SNAP"
+sync-mode="FULL"
 data-storage-format="BONSAI"
 
 # === SERVICIOS DESHABILITADOS ===
@@ -60,7 +60,7 @@ metrics-port=9545
 # === CONFIGURACIÓN DE SEGURIDAD ===
 # Bootnode no guarda claves privadas sensibles
 # Archivo de clave del nodo (solo para identidad P2P)
-node-private-key-file="${config.options?.keyPath || './keys/' + config.name + '/key'}"
+node-private-key-file="/data/${config.name}/keys/key.priv"
 
 # === CONFIGURACIÓN ESPECÍFICA BOOTNODE ===
 # Bootnode debe mantener conexiones estables
@@ -90,7 +90,7 @@ min-gas-price=1000000000
 # === CONFIGURACIÓN DE RED ===
 # Puerto P2P (solo para peers confiables)
 p2p-port=${P2P_PORT}
-p2p-host="${config.network.ip}"
+p2p-host="0.0.0.0"
 
 # Conexiones limitadas (solo peers esenciales)
 max-peers=15
@@ -104,10 +104,10 @@ bootnodes=["${config.options?.bootnodes}"]
 
 # === CONFIGURACIÓN DE DATOS ===
 # Directorio de datos (almacenamiento completo y seguro)
-data-path="${config.options?.dataPath || './data/' + config.name}"
+data-path="/data/${config.name}/data"
 
 # Archivo génesis
-genesis-file="${config.options?.genesisPath || './genesis.json'}"
+genesis-file="/data/genesis.json"
 
 # === CONFIGURACIÓN DE CONSENSO ===
 # HABILITADO: Este nodo puede firmar bloques
@@ -120,24 +120,34 @@ target-gas-limit=8000000
 
 # === SINCRONIZACIÓN Y ALMACENAMIENTO ===
 # Sincronización completa con SNAP (más eficiente que FAST)
-sync-mode="SNAP"
+sync-mode="FULL"
 data-storage-format="BONSAI"
 
-# === SERVICIOS - NO EXPUESTOS (SEGURIDAD CRÍTICA) ===
-# DESHABILITADO: Signers NO deben exponer RPC públicamente
-rpc-http-enabled=false
+# === SERVICIOS - CONFIGURACIÓN SEGURA ===
+# OPCIÓN SEGURA: RPC mínimo solo para administración local
+rpc-http-enabled=true
+rpc-http-host="127.0.0.1"  # SOLO localhost - NO expuesto externamente
+rpc-http-port=8545
+rpc-http-apis=["ADMIN","DEBUG","TXPOOL"]  # APIs mínimas necesarias
 rpc-ws-enabled=false
 graphql-http-enabled=false
 
-# API local SOLO para mantenimiento (descomenta si necesitas administración local)
-# rpc-http-enabled=true
-# rpc-http-host="127.0.0.1"
-# rpc-http-port=8545
-# rpc-http-apis=["ADMIN","DEBUG"]
+# === CONFIGURACIÓN DE TRANSACCIONES SEGURA ===
+# NOTA: tx-pool-max-size y tx-pool-retention-hours están deprecados en Besu 25.6.0+
+# El nuevo "layered transaction pool" maneja esto automáticamente
+# Sincronización de mempool con peers (sin exponer RPC)
+tx-pool-price-bump=10
+
+# NOTA CRÍTICA DE SEGURIDAD:
+# - RPC solo en localhost (127.0.0.1) - NO accesible desde red
+# - APIs limitadas a administración y debugging
+# - Transacciones se sincronizan vía P2P, no RPC
+# - Para producción: considerar deshabilitar RPC completamente
+# - Besu 25.6.0+ usa "layered transaction pool" por defecto
 
 # === CONFIGURACIÓN DE SEGURIDAD ===
 # Clave privada del signer (CRÍTICA - PROTEGER)
-node-private-key-file="${config.options?.keyPath || './keys/' + config.name + '/key'}"
+node-private-key-file="/data/${config.name}/keys/key.priv"
 
 # === LOGGING Y MONITOREO ===
 logging="${config.options?.logLevel || 'INFO'}"
@@ -175,7 +185,7 @@ metrics-port=9545
 # === CONFIGURACIÓN DE RED ===
 # Puerto P2P para sincronización
 p2p-port=${P2P_PORT}
-p2p-host="${config.network.ip}"
+p2p-host="0.0.0.0"
 
 # Alto número de peers para mejor sincronización
 max-peers=50
@@ -189,10 +199,10 @@ bootnodes=["${config.options?.bootnodes}"]
 
 # === CONFIGURACIÓN DE DATOS ===
 # Directorio de datos
-data-path="${config.options?.dataPath || './data/' + config.name}"
+data-path="/data/${config.name}/data"
 
 # Archivo génesis
-genesis-file="${config.options?.genesisPath || './genesis.json'}"
+genesis-file="/data/genesis.json"
 
 # === CONFIGURACIÓN DE CONSENSO ===
 # DESHABILITADO: RPC no participa en consenso
@@ -200,18 +210,17 @@ miner-enabled=false
 
 # === SINCRONIZACIÓN Y ALMACENAMIENTO ===
 # Sincronización SNAP (recomendada, más eficiente que FAST deprecado)
-sync-mode="SNAP"
+sync-mode="FULL"
 data-storage-format="BONSAI"
 
 # === SERVICIOS RPC - HABILITADOS (FUNCIÓN PRINCIPAL) ===
 # HTTP RPC habilitado para aplicaciones
 rpc-http-enabled=true
-# rpc-http-host="0.0.0.0"
-rpc-http-host="${config.network.ip}"
+rpc-http-host="0.0.0.0"
 rpc-http-port=${RPC_PORT}
 
 # APIs completas para aplicaciones diversas
-rpc-http-apis=["ETH","NET","WEB3","TXPOOL","DEBUG","TRACE"]
+rpc-http-apis=["ETH","NET","WEB3","TXPOOL","DEBUG","TRACE", "ADMIN"]
 
 # CORS configurado para aplicaciones web
 rpc-http-cors-origins=["*"]
@@ -235,7 +244,7 @@ graphql-http-cors-origins=["*"]
 
 # === CONFIGURACIÓN DE SEGURIDAD ===
 # Clave del nodo (solo para identidad P2P)
-node-private-key-file="${config.options?.keyPath || './keys/' + config.name + '/key'}"
+node-private-key-file="/data/${config.name}/keys/key.priv"
 
 # Para producción, habilitar TLS:
 # rpc-http-tls-enabled=true

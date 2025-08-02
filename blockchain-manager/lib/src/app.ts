@@ -1,27 +1,27 @@
 import Docker from "dockerode";
-import fs from "fs";
-import path from "path";
+// import fs from "fs";
+// import path from "path";
 import {
     BOOTNODE_IP,
     BOOTNODE_NAME,
     BOOTNODE_PORT,
     CHAIN_ID,
-    MINERNODE_IP,
-    MINERNODE_NAME,
-    MINERNODE_PORT,
+    SIGNERNODE_IP,
+    SIGNERNODE_NAME,
+    SIGNERNODE_PORT,
     NETWORK_GATEWAY,
     NETWORK_NAME,
     NETWORK_SUBNET,
-    RPC_PORT,
+    // RPC_PORT,
     RPC_PORT_NODE_LIST,
 } from "./constants";
 // import { createBesuNodeConfigFile } from "./services/besuNodeConfigFile";
-import { createCliqueGenesisFile } from "./services/cliqueGenesisFile";
+// import { createCliqueGenesisFile } from "./services/cliqueGenesisFile";
 import { createBesuNode } from "./services/createBesuNode";
-import { createNodeIdentityFiles } from "./services/createNodeIdentityFiles";
+// import { createNodeIdentityFiles } from "./services/createNodeIdentityFiles";
 import { BesuNodeConfig, BesuNodeType } from "./types";
 import { generateIpAddress } from "./services/generateIpAddress";
-import { initializeBlockchainNetwork } from "./services/initializeBlockchain";
+import { generateNodeIdentity, initializeBlockchainNetwork } from "./services/initializeBlockchain";
 import { createNodeConfigurationFiles } from "./services/generateTomlFile";
 
 const docker = new Docker();
@@ -37,30 +37,9 @@ const docker = new Docker();
                 subnet: NETWORK_SUBNET,
                 gateway: NETWORK_GATEWAY,
                 bootnodeIp: BOOTNODE_IP,
+                signerIp: SIGNERNODE_IP,
             }
         );
-
-        const signerNodeConfig = {
-            name: MINERNODE_NAME,
-            configPath: `${blockchainDataPath}/${MINERNODE_NAME}/config`,
-            network: { name: NETWORK_NAME, ip: MINERNODE_IP },
-            hostPort: MINERNODE_PORT,
-            type: BesuNodeType.SIGNER,
-            options: {
-                minerEnabled: true,
-                minerCoinbase: signer.address,
-                minGasPrice: 0,
-                bootnodes: bootnode ? bootnode.enode : '',
-                dataPath: `${blockchainDataPath}/${MINERNODE_NAME}`,
-                genesisPath: genesisFilePath,
-                keyPath: `${blockchainDataPath}/${MINERNODE_NAME}/keys`,
-                maxMemory: '4g',
-                logLevel: 'INFO'
-            }
-        }
-
-        const signerNodeConfigFiles = createNodeConfigurationFiles(signerNodeConfig, signer);
-        await createBesuNode(docker, signerNodeConfig, signerNodeConfigFiles);
 
         if (bootnode) {
             const bootnodeNodeConfig = {
@@ -70,7 +49,6 @@ const docker = new Docker();
                 hostPort: BOOTNODE_PORT,
                 type: BesuNodeType.BOOTNODE,
                 options: {
-                    bootnodes: bootnode.enode,
                     dataPath: `${blockchainDataPath}/${BOOTNODE_NAME}`,
                     genesisPath: genesisFilePath,
                     keyPath: `${blockchainDataPath}/${BOOTNODE_NAME}/keys`,
@@ -81,10 +59,33 @@ const docker = new Docker();
             const bootnodeNodeConfigFiles = createNodeConfigurationFiles(bootnodeNodeConfig, bootnode);
             await createBesuNode(docker, bootnodeNodeConfig, bootnodeNodeConfigFiles);
 
+            const signerNodeConfig = {
+                name: SIGNERNODE_NAME,
+                configPath: `${blockchainDataPath}/${SIGNERNODE_NAME}/config`,
+                network: { name: NETWORK_NAME, ip: SIGNERNODE_IP },
+                hostPort: SIGNERNODE_PORT,
+                type: BesuNodeType.SIGNER,
+                options: {
+                    minerEnabled: true,
+                    minerCoinbase: signer.address,
+                    minGasPrice: 0,
+                    bootnodes: bootnode ? bootnode.enode : '',
+                    dataPath: `${blockchainDataPath}/${SIGNERNODE_NAME}`,
+                    genesisPath: genesisFilePath,
+                    keyPath: `${blockchainDataPath}/${SIGNERNODE_NAME}/keys`,
+                    maxMemory: '4g',
+                    logLevel: 'INFO'
+                }
+            }
+
+            const signerNodeConfigFiles = createNodeConfigurationFiles(signerNodeConfig, signer);
+            await createBesuNode(docker, signerNodeConfig, signerNodeConfigFiles);
+
             if (RPC_PORT_NODE_LIST?.length > 0) {
                 for (const [index, rpcNodePort] of RPC_PORT_NODE_LIST.entries()) {
                     const ip = generateIpAddress(NETWORK_SUBNET, index);
-        
+                    const rpcNodeIdentity = generateNodeIdentity(ip);
+
                     const rpcnodeConfig: BesuNodeConfig = {
                         name: `RPC_${rpcNodePort}_NODE`,
                         configPath: `${blockchainDataPath}/RPC_${rpcNodePort}_NODE/config`,
@@ -104,15 +105,13 @@ const docker = new Docker();
                             logLevel: 'INFO'
                         }
                     };
-                    const rpcNodeConfigFiles = createNodeConfigurationFiles(rpcnodeConfig, bootnode);
-        
+
+                    const rpcNodeConfigFiles = createNodeConfigurationFiles(rpcnodeConfig, rpcNodeIdentity);
                     await createBesuNode(docker, rpcnodeConfig, rpcNodeConfigFiles);
                 }
             }
-            
-
         }
-
+        
         // const bootnodeConfig: BesuNodeConfig = {
         //     name: BOOTNODE_NAME,
         //     network: {

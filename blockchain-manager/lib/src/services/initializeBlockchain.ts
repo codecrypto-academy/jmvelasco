@@ -15,8 +15,9 @@ export async function initializeBlockchainNetwork(docker: Docker, chainId: numbe
     subnet: string;
     gateway: string;
     bootnodeIp: string;
+    signerIp: string;
 }) {
-    const { name, subnet, gateway, bootnodeIp } = networkOptions;
+    const { name, subnet, gateway, bootnodeIp, signerIp } = networkOptions;
     const dockerNetworkId = await ensureNetworkExists(docker,
         {
             name,
@@ -31,14 +32,14 @@ export async function initializeBlockchainNetwork(docker: Docker, chainId: numbe
         fs.rmSync(blockchainDataPath, { recursive: true, force: true });
     }
 
-    const signer = generateSignerAccount();
+    const signer = generateSignerAccount(signerIp);
     const bootnode = bootnodeIp ? generateBootnodeAccount(bootnodeIp) : null;
     const userAccounts = generateUserAccounts(5); 
     const genesisFilePath = createCliqueGenesisFile(blockchainDataPath, {
         chainId,
         initialValidators: [`0x${signer.address}`],
         preAllocatedAccounts: [
-            { address: `0xb650c765f7E3288deBE8909D89261bD27354811C`, balance: '0xad78ebc5ac6200000' },
+            { address: `0x${signer.address}`, balance: '0xad78ebc5ac6200000' },
             { address: `0x${userAccounts[0].address}`, balance: '0xad78ebc5ac6200000' },
             { address: `0x${userAccounts[1].address}`, balance: '0xad78ebc5ac6200000' },
             { address: `0x${userAccounts[2].address}`, balance: '0xad78ebc5ac6200000' },
@@ -57,7 +58,7 @@ export async function initializeBlockchainNetwork(docker: Docker, chainId: numbe
 }
 
 
-function generateNodeIdentity(ip: string) {
+export function generateNodeIdentity(ip: string) {
     const { publicKey, privateKey } = generateKeyPair();
     const publicKeyHash = publicKey.slice(2);
     const pubKeyBuffer = keccak256(Buffer.from(publicKeyHash, 'hex'));
@@ -87,12 +88,13 @@ function generateUserAccounts(count: number) {
     });
 }
 
-function generateSignerAccount() {
-    const identity = generateNodeIdentity('0.0.0.0'); // IP dummy
+function generateSignerAccount(signerIp: string) {
+    const identity = generateNodeIdentity(signerIp); // IP dummy
     return {
         publicKey: identity.publicKey,
         privateKey: identity.privateKey,
-        address: identity.address
+        address: identity.address,
+        enode: identity.enode
     };
 }
 

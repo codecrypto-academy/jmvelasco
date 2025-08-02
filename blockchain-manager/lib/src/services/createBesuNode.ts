@@ -9,9 +9,8 @@ export async function createBesuNode(docker: Docker, nodeConfig: BesuNodeConfig,
     const generatePortBindings = (config: BesuNodeConfig) => {
         const portBindings: { [key: string]: Array<{ HostPort: string }> } = {};
         
-        // Puerto P2P (siempre el configurado)
         portBindings[`${P2P_PORT}/tcp`] = [{ HostPort: config.hostPort.toString() }];
-        
+
         // Para RPC: puertos específicos adicionales
         if (config.type === BesuNodeType.RPC) {
             const basePort = config.hostPort;
@@ -38,9 +37,6 @@ export async function createBesuNode(docker: Docker, nodeConfig: BesuNodeConfig,
         name: nodeConfig.name,
         Cmd: [
             `--config-file=/data/${nodeIdentityFiles.configFile}`,
-            `--data-path=/data/${nodeConfig.name}/data`,
-            `--node-private-key-file=/data/${nodeIdentityFiles.privateKeyFile}`,
-            `--genesis-file=/data/genesis.json`            
         ],
         Labels: {
             "node": nodeConfig.name,

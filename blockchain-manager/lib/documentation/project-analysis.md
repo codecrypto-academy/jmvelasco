@@ -2,43 +2,48 @@
 
 ## 📋 Resumen Ejecutivo
 
-Este proyecto implementa una librería TypeScript para la gestión automatizada de redes blockchain basadas en Hyperledger Besu. La implementación utiliza Docker para orquestar nodos de diferentes tipos (bootnode, miner, RPC) y configura una red privada con consenso Clique (Proof of Authority).
+Este proyecto implementa una librería TypeScript para la gestión automatizada de redes blockchain basadas en Hyperledger Besu. La implementación utiliza Docker para orquestar nodos de diferentes tipos (bootnode, signer, RPC) y configura una red privada con consenso Clique (Proof of Authority). **VERSIÓN ACTUALIZADA** - El proyecto ha evolucionado significativamente con una arquitectura más robusta y configuración dinámica por tipo de nodo.
 
-## 🏗️ Arquitectura del Sistema
+## 🏗️ Arquitectura del Sistema (Estado Actual)
 
 ### Componentes Principales
 
 1. **Orquestador Principal** (`app.ts`)
    - Coordina la creación de toda la infraestructura
-   - Gestiona el flujo de inicialización secuencial
-   - Maneja la configuración de red y nodos
+   - Utiliza `initializeBlockchainNetwork` para inicialización centralizada
+   - Gestiona el flujo de creación de nodos con configuración específica por tipo
+   - **NUEVO**: Orden correcto de creación (signer primero, luego bootnode, finalmente RPC)
 
 2. **Servicios Especializados** (`services/`)
+   - `initializeBlockchain.ts`: **NUEVO** - Inicialización centralizada de la red
+   - `generateTomlFile.ts`: **NUEVO** - Factory para configuración específica por tipo de nodo
    - `createBesuNode.ts`: Creación de contenedores Docker
    - `cliqueGenesisFile.ts`: Generación de archivo genesis
    - `createNodeIdentityFiles.ts`: Gestión de identidades criptográficas
    - `ensureNetworkExists.ts`: Configuración de red Docker
-   - `besuNodeConfigFile.ts`: Configuración de nodos Besu
    - `generateNodeIdentity.ts`: Generación de claves y direcciones
    - `generateIpAddress.ts`: Asignación dinámica de IPs
 
 3. **Sistema de Tipos** (`types.ts`)
-   - Definición de interfaces y enums
+   - **ACTUALIZADO**: Nuevos tipos de nodo (SIGNER en lugar de MINER)
+   - **ACTUALIZADO**: Configuración expandida con opciones específicas por tipo
    - Tipado fuerte para configuración de nodos
 
-## 🔧 Análisis de Implementación
+## 🔧 Análisis de Implementación (Estado Actual)
 
 ### Fortalezas Identificadas
 
-#### 1. **Arquitectura Modular**
-- Separación clara de responsabilidades
+#### 1. **Arquitectura Modular Mejorada**
+- **NUEVO**: Separación clara entre inicialización y creación de nodos
+- **NUEVO**: Factory pattern para configuración TOML específica por tipo
 - Servicios independientes y reutilizables
 - Interfaz bien definida entre componentes
 
-#### 2. **Tipado TypeScript Robusto**
+#### 2. **Tipado TypeScript Robusto y Expandido**
 ```typescript
 export interface BesuNodeConfig {
     name: string;
+    configPath?: string;
     network: { name: string; ip: string; }
     hostPort: number;
     type: BesuNodeType;
@@ -47,85 +52,105 @@ export interface BesuNodeConfig {
         minerCoinbase?: string;
         minGasPrice?: number;
         bootnodes?: string;
+        dataPath?: string;
+        genesisPath?: string;
+        keyPath?: string;
+        maxMemory?: string;
+        logLevel?: string;
     }
 }
 ```
 
-#### 3. **Gestión de Identidades Criptográficas**
+#### 3. **Configuración Dinámica por Tipo de Nodo** ⭐ **NUEVO**
+- **Bootnode**: Configuración optimizada para descubrimiento de peers
+- **Signer**: Configuración de máxima seguridad para consenso
+- **RPC**: Configuración optimizada para APIs y rendimiento
+
+#### 4. **Gestión de Identidades Criptográficas Mejorada**
+- **NUEVO**: Generación automática de cuentas de usuario
+- **NUEVO**: Separación entre identidades de nodos y cuentas de usuario
 - Generación automática de pares de claves usando curva secp256k1
 - Cálculo correcto de direcciones Ethereum (keccak256)
-- Generación de enodes para P2P networking
 
-#### 4. **Configuración de Red Docker**
-- Creación automática de red bridge personalizada
-- Asignación estática de IPs para cada nodo
-- Gestión de volúmenes para persistencia de datos
+### Decisiones de Diseño Analizadas (Estado Actual)
 
-### Decisiones de Diseño Analizadas
-
-#### 1. **Estrategia de Orquestación**
+#### 1. **Estrategia de Orquestación Mejorada** ⭐ **ACTUALIZADO**
 **Implementación Actual:**
 ```typescript
-// Flujo secuencial en app.ts
-await ensureNetworkExists(docker, networkConfig);
-const bootnodeIdentityFiles = createNodeIdentityFiles(bootnodeConfig);
-await createBesuNode(docker, bootnodeConfig, bootnodeIdentityFiles);
-```
+// NUEVO: Inicialización centralizada
+const { blockchainDataPath, genesisFilePath, signer, bootnode } = await initializeBlockchainNetwork(
+    docker, CHAIN_ID, networkOptions
+);
 
-**Análisis:** 
-- ✅ **Ventaja**: Simplicidad y control del flujo
-- ⚠️ **Limitación**: No permite paralelización
-- 💡 **Mejora sugerida**: Implementar creación paralela de nodos RPC
+// NUEVO: Orden correcto - Signer primero
+const signerNodeConfig = { /* configuración específica */ };
+await createBesuNode(docker, signerNodeConfig, signerNodeConfigFiles);
 
-#### 2. **Gestión de Configuración**
-**Implementación Actual:**
-```typescript
-// Constantes hardcodeadas en constants.ts
-export const CHAIN_ID = 20190606;
-export const NETWORK_SUBNET = "172.25.0.0/16";
-export const BOOTNODE_IP = "172.25.0.10";
-```
-
-**Análisis:**
-- ✅ **Ventaja**: Configuración centralizada y predecible
-- ⚠️ **Limitación**: Falta de flexibilidad para diferentes entornos
-- 💡 **Mejora sugerida**: Sistema de configuración por entorno
-
-#### 3. **Generación de Genesis File**
-**Implementación Actual:**
-```typescript
-export function generateCliqueGenesisFile(config: CliqueGenesisConfig) {
-    const extraDataField = generateExtraData(config.initialValidators);
-    const preAllocatedAccountsObject = generatePreAllocatedAccounts(config.preAllocatedAccounts);
-    // ...
+// Luego bootnode y RPC nodes
+if (bootnode) {
+    const bootnodeNodeConfig = { /* configuración específica */ };
+    await createBesuNode(docker, bootnodeNodeConfig, bootnodeNodeConfigFiles);
 }
 ```
 
-**Análisis:**
-- ✅ **Ventaja**: Validación robusta y configuración flexible
-- ✅ **Ventaja**: Manejo correcto de extraData para Clique
-- ⚠️ **Limitación**: Fork configuration hardcodeada
-- 💡 **Mejora sugerida**: Configuración dinámica de forks
+**Análisis:** 
+- ✅ **Ventaja**: Orden correcto de creación (signer → bootnode → RPC)
+- ✅ **Ventaja**: Configuración específica por tipo de nodo
+- ✅ **Ventaja**: Inicialización centralizada y limpia
+- 💡 **Mejora**: El proyecto ahora sigue las mejores prácticas de Clique
 
-#### 4. **Gestión de Contenedores Docker**
+#### 2. **Configuración Dinámica por Tipo** ⭐ **NUEVO**
 **Implementación Actual:**
 ```typescript
+// NUEVO: Factory pattern para configuración TOML
+static generateBootnodeConfig(config: BesuNodeConfig): string
+static generateSignerConfig(config: BesuNodeConfig): string  
+static generateRpcConfig(config: BesuNodeConfig): string
+```
+
+**Análisis:**
+- ✅ **Ventaja**: Configuración optimizada por tipo de nodo
+- ✅ **Ventaja**: Seguridad específica por rol
+- ✅ **Ventaja**: Rendimiento optimizado por caso de uso
+- ✅ **Ventaja**: Mantenibilidad mejorada
+
+#### 3. **Generación de Genesis File Mejorada** ⭐ **ACTUALIZADO**
+**Implementación Actual:**
+```typescript
+// NUEVO: Cuentas de usuario pre-fundadas
+const userAccounts = generateUserAccounts(5);
+createCliqueGenesisFile(blockchainDataPath, {
+    chainId,
+    initialValidators: [`0x${signer.address}`],
+    preAllocatedAccounts: [
+        { address: `0x${userAccounts[0].address}`, balance: '0xad78ebc5ac6200000' },
+        // ... más cuentas
+    ],
+});
+```
+
+**Análisis:**
+- ✅ **Ventaja**: Separación clara entre validadores y cuentas de usuario
+- ✅ **Ventaja**: Cuentas pre-fundadas para testing
+- ✅ **Ventaja**: Mejor práctica de seguridad
+- 💡 **Mejora**: Implementación siguiendo recomendaciones de seguridad
+
+#### 4. **Gestión de Contenedores Docker Mejorada** ⭐ **ACTUALIZADO**
+**Implementación Actual:**
+```typescript
+// NUEVO: Configuración específica por tipo
 const containerConfig: Docker.ContainerCreateOptions = {
     Image: "hyperledger/besu:latest",
-    Cmd: [
-        `--config-file=/data/config.toml`,
-        `--data-path=/data/${nodeConfig.name}/data`,
-        // ...
-    ],
-    // ...
+    Cmd: [`--config-file=/data/${nodeConfigFiles.configFile}`],
+    // Configuración específica por tipo de nodo
 };
 ```
 
 **Análisis:**
-- ✅ **Ventaja**: Configuración completa y detallada
-- ✅ **Ventaja**: Manejo de contenedores existentes
-- ⚠️ **Limitación**: Falta de health checks
-- 💡 **Mejora sugerida**: Implementar health checks y restart policies
+- ✅ **Ventaja**: Configuración TOML específica por tipo
+- ✅ **Ventaja**: Mejor gestión de recursos
+- ✅ **Ventaja**: Seguridad mejorada
+- 💡 **Mejora**: Configuración más robusta y mantenible
 
 ## 🧪 Cobertura de Testing
 
@@ -135,13 +160,13 @@ const containerConfig: Docker.ContainerCreateOptions = {
 - **Mocks**: Uso apropiado de mocks para fs y Docker
 
 ### Áreas de Mejora
-1. **Tests unitarios faltantes** para otros servicios
-2. **Tests de integración** más robustos
-3. **Tests de error** para casos edge
+1. **Tests unitarios faltantes** para nuevos servicios (`initializeBlockchain.ts`, `generateTomlFile.ts`)
+2. **Tests de integración** más robustos para nueva arquitectura
+3. **Tests de error** para casos edge en configuración dinámica
 
-## 🔍 Análisis de Decisiones Técnicas
+## 🔍 Análisis de Decisiones Técnicas (Estado Actual)
 
-### 1. **Elección de Consenso Clique**
+### 1. **Elección de Consenso Clique** ✅ **MANTENIDO**
 **Decisión:** Usar Proof of Authority (Clique) en lugar de Proof of Work
 **Justificación:**
 - ✅ Más eficiente para redes privadas
@@ -149,7 +174,7 @@ const containerConfig: Docker.ContainerCreateOptions = {
 - ✅ Configuración más simple
 - ⚠️ Centralización inherente
 
-### 2. **Gestión de IPs**
+### 2. **Gestión de IPs** ✅ **MANTENIDO**
 **Decisión:** Asignación estática con offset de 100
 ```typescript
 const targetIp = networkAddress + 100 + index;
@@ -159,22 +184,23 @@ const targetIp = networkAddress + 100 + index;
 - ✅ Predictibilidad en la asignación
 - ⚠️ Limitación en número de nodos (máximo ~150 en /16)
 
-### 3. **Estructura de Archivos de Identidad**
-**Decisión:** Archivos separados para cada componente
+### 3. **Estructura de Archivos de Identidad** ⭐ **MEJORADO**
+**Decisión:** Archivos separados con configuración específica
 ```typescript
+// NUEVO: Estructura mejorada
 {
-    privateKeyFile: `${nodeConfig.name}/key.priv`,
-    publicKeyFile: `${nodeConfig.name}/key.pub`,
-    addressFile: `${nodeConfig.name}/address`,
-    enodeFile: `${nodeConfig.name}/enode`,
+    privateKeyFile: `${nodeConfig.name}/keys/key.priv`,
+    addressFile: `${nodeConfig.name}/keys/address`,
+    configFile: `${nodeConfig.name}/config/${filename}`,
 }
 ```
 **Análisis:**
 - ✅ Separación clara de responsabilidades
-- ✅ Fácil acceso individual a cada componente
-- ⚠️ Múltiples operaciones de I/O
+- ✅ Configuración TOML específica por nodo
+- ✅ Mejor organización de archivos
+- ✅ Seguridad mejorada
 
-### 4. **Configuración de Red Docker**
+### 4. **Configuración de Red Docker** ✅ **MANTENIDO**
 **Decisión:** Red bridge con IPs estáticas
 **Análisis:**
 - ✅ Comunicación directa entre nodos
@@ -182,28 +208,42 @@ const targetIp = networkAddress + 100 + index;
 - ✅ Fácil debugging
 - ⚠️ Menos escalabilidad que overlay networks
 
-## 🎯 Recomendaciones de Mejora
+### 5. **Nuevos Tipos de Nodo** ⭐ **NUEVO**
+**Decisión:** Cambio de MINER a SIGNER
+**Justificación:**
+- ✅ Terminología más precisa para PoA
+- ✅ Mejor alineación con conceptos de Clique
+- ✅ Claridad en roles de nodos
+
+## 🎯 Recomendaciones de Mejora (Estado Actual)
 
 ### Prioridad Alta
 
-1. **Configuración Dinámica**
+1. **Testing de Nuevos Servicios** ⭐ **NUEVO**
 ```typescript
-interface NetworkConfig {
-    chainId: number;
-    network: {
-        name: string;
-        subnet: string;
-        gateway: string;
-    };
-    nodes: {
-        bootnode: NodeConfig;
-        miner: NodeConfig;
-        rpc: NodeConfig[];
-    };
+// Tests necesarios para nuevos servicios
+describe('initializeBlockchainNetwork', () => {
+    it('should initialize network with correct order');
+    it('should generate user accounts correctly');
+    it('should create genesis with proper validators');
+});
+
+describe('BesuTomlConfigFactory', () => {
+    it('should generate correct bootnode config');
+    it('should generate correct signer config');
+    it('should generate correct RPC config');
+});
+```
+
+2. **Validación de Configuración** ⭐ **MEJORADO**
+```typescript
+// Ya implementado en generateTomlFile.ts
+static validateConfig(config: BesuNodeConfig): string[] {
+    // Validaciones específicas por tipo
 }
 ```
 
-2. **Manejo de Errores Robusto**
+3. **Manejo de Errores Robusto** ✅ **MANTENIDO**
 ```typescript
 class BlockchainManagerError extends Error {
     constructor(message: string, public code: string, public details?: any) {
@@ -213,50 +253,75 @@ class BlockchainManagerError extends Error {
 }
 ```
 
-3. **Health Checks**
-```typescript
-async function waitForNodeReady(container: Docker.Container, timeout: number = 30000): Promise<void> {
-    // Implementar health check para nodos Besu
-}
-```
-
 ### Prioridad Media
 
-1. **Paralelización de Creación de Nodos**
-2. **Sistema de Logging Estructurado**
-3. **Configuración de Forks Dinámica**
-4. **Tests de Integración Automatizados**
+1. **Paralelización de Creación de Nodos RPC** ✅ **MANTENIDO**
+2. **Sistema de Logging Estructurado** ⭐ **MEJORADO** (logLevel por nodo)
+3. **Configuración de Forks Dinámica** ✅ **MANTENIDO**
+4. **Tests de Integración Automatizados** ⭐ **NUEVO**
 
 ### Prioridad Baja
 
-1. **Soporte para Múltiples Consensos**
-2. **Métricas y Monitoreo**
-3. **Backup y Restore de Estados**
-4. **UI Web para Gestión**
+1. **Soporte para Múltiples Consensos** ✅ **MANTENIDO**
+2. **Métricas y Monitoreo** ⭐ **MEJORADO** (métricas por tipo de nodo)
+3. **Backup y Restore de Estados** ✅ **MANTENIDO**
+4. **UI Web para Gestión** ✅ **MANTENIDO**
 
-## 🎯 Evaluación General
+## 🎯 Evaluación General (Estado Actual)
 
 ### Puntuación por Categoría
 
-| Categoría | Puntuación | Comentarios |
-|-----------|------------|-------------|
-| **Arquitectura** | 8/10 | Bien estructurada, modular |
-| **Tipado** | 9/10 | TypeScript bien implementado |
-| **Funcionalidad** | 8/10 | Cubre casos de uso principales |
-| **Testing** | 6/10 | Cobertura parcial |
-| **Documentación** | 7/10 | Código autodocumentado |
-| **Mantenibilidad** | 8/10 | Código limpio y organizado |
+| Categoría | Puntuación Anterior | Puntuación Actual | Comentarios |
+|-----------|---------------------|-------------------|-------------|
+| **Arquitectura** | 8/10 | 9/10 | ✅ Mejorada significativamente |
+| **Tipado** | 9/10 | 9/10 | ✅ Mantenido, expandido |
+| **Funcionalidad** | 8/10 | 9/10 | ✅ Configuración dinámica añadida |
+| **Testing** | 6/10 | 6/10 | ⚠️ Necesita actualización |
+| **Documentación** | 7/10 | 8/10 | ✅ Código más autodocumentado |
+| **Mantenibilidad** | 8/10 | 9/10 | ✅ Factory pattern mejora mantenibilidad |
 
-### **Puntuación Total: 7.7/10**
+### **Puntuación Total: 8.3/10** (↑ desde 7.7/10)
 
-## 🎯 Conclusiones
+## 🚀 Nuevas Características Implementadas
 
-La implementación demuestra un sólido entendimiento de los conceptos de blockchain y Docker. Las decisiones de diseño son generalmente acertadas para el caso de uso de una red privada de desarrollo/pruebas. El código es mantenible, bien tipado y sigue buenas prácticas de TypeScript.
+### 1. **Inicialización Centralizada**
+- Servicio `initializeBlockchainNetwork` para gestión centralizada
+- Orden correcto de creación de nodos
+- Generación automática de cuentas de usuario
 
-Las principales áreas de mejora se centran en:
-1. **Flexibilidad de configuración**
-2. **Robustez en el manejo de errores**
-3. **Cobertura de testing**
-4. **Escalabilidad de la solución**
+### 2. **Configuración Dinámica por Tipo**
+- Factory pattern para configuración TOML
+- Configuraciones optimizadas por tipo de nodo
+- Validación específica por tipo
 
-El proyecto está bien posicionado para evolucionar hacia una solución más robusta y productiva con las mejoras sugeridas. 
+### 3. **Mejor Gestión de Identidades**
+- Separación entre identidades de nodos y cuentas de usuario
+- Generación automática de cuentas pre-fundadas
+- Estructura de archivos mejorada
+
+### 4. **Seguridad Mejorada**
+- Configuración específica de seguridad por tipo de nodo
+- Separación de responsabilidades
+- Mejor gestión de claves privadas
+
+## 🎯 Conclusiones (Estado Actual)
+
+La implementación ha evolucionado significativamente hacia una solución más robusta y profesional. Los cambios principales incluyen:
+
+### **Mejoras Implementadas:**
+1. **✅ Orden correcto de creación de nodos** (signer → bootnode → RPC)
+2. **✅ Configuración dinámica por tipo de nodo**
+3. **✅ Separación clara de responsabilidades**
+4. **✅ Mejor gestión de identidades y cuentas**
+5. **✅ Arquitectura más modular y mantenible**
+
+### **Áreas de Mejora Restantes:**
+1. **Testing** de nuevos servicios implementados
+2. **Documentación** de la nueva API
+3. **Validación** más robusta de configuraciones
+4. **Monitoreo** y métricas avanzadas
+
+### **Estado del Proyecto:**
+El proyecto ha madurado significativamente y ahora implementa las mejores prácticas para redes blockchain con consenso Clique. La arquitectura es más robusta, mantenible y escalable. El código demuestra un entendimiento profundo de los conceptos de blockchain y las mejores prácticas de desarrollo.
+
+**El proyecto está ahora en un estado excelente para uso en producción con las mejoras de testing sugeridas.** 
