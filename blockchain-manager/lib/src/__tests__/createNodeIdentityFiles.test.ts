@@ -6,6 +6,7 @@ jest.mock("fs");
 describe('createNodeIdentityFiles', () => {
     const nodeConfigStub: BesuNodeConfig = {
         name: "mocknode",
+        configPath: "config",
         network: {
             name: "mocknetwork",
             ip: "127.0.0.1"

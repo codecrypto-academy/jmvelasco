@@ -13,6 +13,7 @@ describe('createNode', () => {
 
     const nodeConfigStub: BesuNodeConfig = {
         name: "mocknode",
+        configPath: "config",
         network: {
             name: "mocknetwork",
             ip: "127.0.0.1"
@@ -22,10 +23,11 @@ describe('createNode', () => {
     };
     const nodeIdentityPath = `${process.cwd()}/${nodeConfigStub.network.name}`;
     const nodeIdentityFilesStub = {
-        privateKeyFile: `${nodeIdentityPath}/privateKey`,
-        publicKeyFile: `${nodeIdentityPath}/publicKey`,
-        addressFile: `${nodeIdentityPath}/address`,
-        enodeFile: `${nodeIdentityPath}/enode`,
+        privateKeyFile: `${nodeIdentityPath}/keys/privateKey`,
+        publicKeyFile: `${nodeIdentityPath}/keys/publicKey`,
+        addressFile: `${nodeIdentityPath}/keys/address`,
+        enodeFile: `${nodeIdentityPath}/keys/enode`,
+        configFile: `${nodeIdentityPath}/config/config.toml`,
     }
 
 
@@ -44,7 +46,7 @@ describe('createNode', () => {
             Image: "hyperledger/besu:latest",
             name: nodeConfigStub.name,
             Cmd: [
-                `--config-file=/data/config.toml`,
+                `--config-file=/data/${nodeIdentityFilesStub.configFile}`,
                 `--data-path=/data/${nodeConfigStub.name}/data`,
                 `--node-private-key-file=/data/${nodeIdentityFilesStub.privateKeyFile}`,
                 `--genesis-file=/data/genesis.json`
@@ -96,12 +98,12 @@ describe('createNode', () => {
             Image: "hyperledger/besu:latest",
             name: nodeConfigStub.name,
             Cmd: [
-                `--config-file=/data/config.toml`,
+                `--config-file=/data/${nodeIdentityFilesStub.configFile}`,
                 `--data-path=/data/${nodeConfigStub.name}/data`,
                 `--node-private-key-file=/data/${nodeIdentityFilesStub.privateKeyFile}`,
                 `--genesis-file=/data/genesis.json`,
                 `--miner-enabled=true`,
-                `--miner-coinbase="${nodeIdentityFilesStub.addressFile}"`,
+                `--miner-coinbase=${nodeIdentityFilesStub.addressFile}`,
                 `--min-gas-price=0`,
                 `--bootnodes="${nodeIdentityFilesStub.enodeFile}"`
             ],

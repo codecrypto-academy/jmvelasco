@@ -1,7 +1,7 @@
 import { JsonRpcProvider, Wallet, formatEther, parseEther } from "ethers";
 import path from "path";
 import fs from "fs";
-import { MINERNODE_PORT, RPC_PORT_NODE_LIST, BOOTNODE_PORT, NETWORK_NAME } from "./constants";
+import { P2P_MINERNODE_PORT, RPC_PORT_NODE_LIST, P2P_BOOTNODE_PORT, NETWORK_NAME } from "./constants";
 
 const getProvider = (port: number) => {
     return new JsonRpcProvider(`http://localhost:${port}`);
@@ -46,8 +46,8 @@ const sendTransaction = async (
         const blockchainDataPath = path.join(process.cwd(), NETWORK_NAME); // Assuming blockchain-manager is the network name
 
         // --- Configuration and Initialization ---
-        const minernodeProvider = getProvider(MINERNODE_PORT);
-        const bootnodeProvider = getProvider(BOOTNODE_PORT);
+        const minernodeProvider = getProvider(P2P_MINERNODE_PORT);
+        const bootnodeProvider = getProvider(P2P_BOOTNODE_PORT);
         const rpcNodeProviders = RPC_PORT_NODE_LIST.map(port => getProvider(port));
 
         const minernodeAddress = fs.readFileSync(path.join(blockchainDataPath, "miner", "address"), { encoding: 'utf-8' });

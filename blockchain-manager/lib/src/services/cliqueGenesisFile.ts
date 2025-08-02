@@ -104,22 +104,25 @@ export function generateCliqueGenesisFile(config: CliqueGenesisConfig) {
         return genesisDataObject;
     } catch (error) {
         if (error instanceof Error) {
-            throw new Error(`Failed to generate genesis json object: ${error.message}`);
+            throw new Error(error.message);
         }
-        throw new Error(`Failed to generate genesis json object`);
+        if (typeof error === "string") {
+            throw new Error(error);
+        }
+        throw error;
     }
 }
 
 export function generateExtraData(validatorAddresses: string[]): string {
     if (!validatorAddresses.length) {
-        throw new Error(`At least one validator address must be provided`);
+        throw `At least one validator address must be provided`;
     }
+
     validatorAddresses.forEach(addr => {
         if (!/^0x[0-9a-fA-F]{40}$/.test(addr)) {
-            throw new Error(`Invalid Ethereum address: ${addr}`);
+            throw `Invalid Ethereum address: ${addr}`;
         }
     });
-
     const vanityData = "0".repeat(VANITY_DATA_LENGTH);
     const addresses = validatorAddresses
         .map(addr => addr.replace('0x', ''))
@@ -133,21 +136,22 @@ export function generatePreAllocatedAccounts(preAllocatedAccounts: PreAllocatedA
     const allocObject: AllocationObject = {};
 
     preAllocatedAccounts.forEach((account) => {
-        const addressKey = account.address.replace(/^0x/i, '').toLowerCase();
+
         if (!/^0x[0-9a-fA-F]{40}$/i.test(account.address)) {
-            throw new Error(`Invalid Ethereum address: ${account.address}`);
+            throw `Invalid Ethereum address: ${account.address}`;
         }
 
         if (!/^(0x)?[0-9a-fA-F]+$/i.test(account.balance)) {
-            throw new Error(`Invalid balance format: ${account.balance}`);
+            throw `Invalid balance format: ${account.balance}`;
         }
 
         const balanceValue = account.balance.startsWith('0x')
             ? account.balance
             : `0x${account.balance}`;
 
+        const addressKey = account.address.replace(/^0x/i, '').toLowerCase();
         if (allocObject[addressKey]) {
-            throw new Error(`Duplicate address found: ${account.address}`);
+            throw `Duplicate address found: ${account.address}`;
         }
 
         allocObject[addressKey] = { balance: balanceValue };

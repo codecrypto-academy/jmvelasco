@@ -1,12 +1,12 @@
 export enum BesuNodeType {
-    MINER = "MINER",
-    RPC = "RPC",
-    BOOTNODE = "BOOTNODE"
+    SIGNER = 'signer',
+    RPC = 'rpc',
+    BOOTNODE = 'bootnode'
 }
-
 
 export interface BesuNodeConfig {
     name: string;
+    configPath?: string;
     network: {
         name: string;
         ip: string;
@@ -18,8 +18,12 @@ export interface BesuNodeConfig {
         minerCoinbase?: string;
         minGasPrice?: number;
         bootnodes?: string;
+        dataPath?: string;
+        genesisPath?: string;
+        keyPath?: string;
+        maxMemory?: string;
+        logLevel?: string;
     }
-
 }
 
 export interface NodeIdentityFiles {
@@ -27,5 +31,6 @@ export interface NodeIdentityFiles {
     publicKeyFile: string;
     addressFile: string;
     enodeFile: string;
+    configFile: string;
 }
 
