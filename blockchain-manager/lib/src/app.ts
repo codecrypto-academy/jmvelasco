@@ -4,15 +4,15 @@ import path from "path";
 import {
     BOOTNODE_IP,
     BOOTNODE_NAME,
-    P2P_BOOTNODE_PORT,
+    BOOTNODE_PORT,
     CHAIN_ID,
     MINERNODE_IP,
     MINERNODE_NAME,
-    P2P_MINERNODE_PORT,
+    MINERNODE_PORT,
     NETWORK_GATEWAY,
     NETWORK_NAME,
     NETWORK_SUBNET,
-    P2P_RPC_PORT,
+    RPC_PORT,
     RPC_PORT_NODE_LIST,
 } from "./constants";
 // import { createBesuNodeConfigFile } from "./services/besuNodeConfigFile";
@@ -44,7 +44,7 @@ const docker = new Docker();
             name: MINERNODE_NAME,
             configPath: `${blockchainDataPath}/${MINERNODE_NAME}/config`,
             network: { name: NETWORK_NAME, ip: MINERNODE_IP },
-            hostPort: P2P_MINERNODE_PORT,
+            hostPort: MINERNODE_PORT,
             type: BesuNodeType.SIGNER,
             options: {
                 minerEnabled: true,
@@ -67,7 +67,7 @@ const docker = new Docker();
                 name: BOOTNODE_NAME,
                 configPath: `${blockchainDataPath}/${BOOTNODE_NAME}/config`,
                 network: { name: NETWORK_NAME, ip: BOOTNODE_IP },
-                hostPort: P2P_BOOTNODE_PORT,
+                hostPort: BOOTNODE_PORT,
                 type: BesuNodeType.BOOTNODE,
                 options: {
                     bootnodes: bootnode.enode,
@@ -101,7 +101,7 @@ const docker = new Docker();
                             genesisPath: genesisFilePath,
                             keyPath: `${blockchainDataPath}/RPC_${rpcNodePort}_NODE/keys`,
                             maxMemory: '6g',
-                            logLevel: 'WARN'
+                            logLevel: 'INFO'
                         }
                     };
                     const rpcNodeConfigFiles = createNodeConfigurationFiles(rpcnodeConfig, bootnode);
@@ -112,11 +112,6 @@ const docker = new Docker();
             
 
         }
-
-
-  
-
-
 
         // const bootnodeConfig: BesuNodeConfig = {
         //     name: BOOTNODE_NAME,

@@ -1,5 +1,6 @@
 import fs from "fs";
 import { BesuNodeConfig, BesuNodeType } from "../types";
+import { P2P_PORT, RPC_PORT } from "../constants";
 
 export class BesuTomlConfigFactory {
     
@@ -17,7 +18,7 @@ export class BesuTomlConfigFactory {
 
 # === CONFIGURACIÓN DE RED ===
 # Puerto P2P para descubrimiento de peers
-p2p-port=${config.hostPort}
+p2p-port=${P2P_PORT}
 p2p-host="${config.network.ip}"
 
 # Máximo número de peers (alto para bootnode)
@@ -88,7 +89,7 @@ min-gas-price=1000000000
 
 # === CONFIGURACIÓN DE RED ===
 # Puerto P2P (solo para peers confiables)
-p2p-port=${config.hostPort}
+p2p-port=${P2P_PORT}
 p2p-host="${config.network.ip}"
 
 # Conexiones limitadas (solo peers esenciales)
@@ -173,7 +174,7 @@ metrics-port=9545
 
 # === CONFIGURACIÓN DE RED ===
 # Puerto P2P para sincronización
-p2p-port=${config.hostPort}
+p2p-port=${P2P_PORT}
 p2p-host="${config.network.ip}"
 
 # Alto número de peers para mejor sincronización
@@ -205,8 +206,9 @@ data-storage-format="BONSAI"
 # === SERVICIOS RPC - HABILITADOS (FUNCIÓN PRINCIPAL) ===
 # HTTP RPC habilitado para aplicaciones
 rpc-http-enabled=true
-rpc-http-host="0.0.0.0"
-rpc-http-port=8545
+# rpc-http-host="0.0.0.0"
+rpc-http-host="${config.network.ip}"
+rpc-http-port=${RPC_PORT}
 
 # APIs completas para aplicaciones diversas
 rpc-http-apis=["ETH","NET","WEB3","TXPOOL","DEBUG","TRACE"]

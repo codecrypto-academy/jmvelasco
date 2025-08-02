@@ -1,7 +1,7 @@
 import { JsonRpcProvider, Wallet, formatEther, parseEther } from "ethers";
 import path from "path";
 import fs from "fs";
-import { P2P_MINERNODE_PORT, RPC_PORT_NODE_LIST, P2P_BOOTNODE_PORT, NETWORK_NAME } from "./constants";
+import { MINERNODE_PORT, RPC_PORT_NODE_LIST, BOOTNODE_PORT, NETWORK_NAME } from "./constants";
 
 const getProvider = (port: number) => {
     return new JsonRpcProvider(`http://localhost:${port}`);
@@ -46,18 +46,18 @@ const sendTransaction = async (
         const blockchainDataPath = path.join(process.cwd(), NETWORK_NAME); // Assuming blockchain-manager is the network name
 
         // --- Configuration and Initialization ---
-        const minernodeProvider = getProvider(P2P_MINERNODE_PORT);
-        const bootnodeProvider = getProvider(P2P_BOOTNODE_PORT);
+        // const minernodeProvider = getProvider(MINERNODE_PORT);
+        // const bootnodeProvider = getProvider(BOOTNODE_PORT);
         const rpcNodeProviders = RPC_PORT_NODE_LIST.map(port => getProvider(port));
 
-        const minernodeAddress = fs.readFileSync(path.join(blockchainDataPath, "miner", "address"), { encoding: 'utf-8' });
-        const minernodePrivateKey = fs.readFileSync(path.join(blockchainDataPath, "miner", "key.priv"), { encoding: 'utf-8' });
-        const minernodeSigner = getSigner(minernodePrivateKey, minernodeProvider);
+        const minernodeAddress = fs.readFileSync(path.join(blockchainDataPath, "signer", "keys", "address"), { encoding: 'utf-8' });
+        const minernodePrivateKey = fs.readFileSync(path.join(blockchainDataPath, "signer", "keys", "key.priv"), { encoding: 'utf-8' });
+        const minernodeSigner = getSigner(minernodePrivateKey, rpcNodeProviders[0]);
 
         // --- Validation Steps ---
 
         console.log("\n--- Checking Account Balances ---");
-        await checkAccountBalance(minernodeProvider, `0x${minernodeAddress}`, "Miner Node");
+        await checkAccountBalance(rpcNodeProviders[1], `0x${minernodeAddress}`, "Miner Node");
 
         // Example: Check balance of a dummy RPC node address (replace with actual RPC node address if needed)
         // For simplicity, we'll check the miner's balance again on an RPC node, assuming all nodes can access the same state.
@@ -69,28 +69,30 @@ const sendTransaction = async (
 
 
         console.log("\n--- Checking Node Synchronization ---");
-        const bootnodeBlockNumber = await getBlockNumber(bootnodeProvider, "Bootnode");
-        const minernodeBlockNumber = await getBlockNumber(minernodeProvider, "Miner Node");
+        // const bootnodeBlockNumber = await getBlockNumber(bootnodeProvider, "Bootnode");
+        // const minernodeBlockNumber = await getBlockNumber(minernodeProvider, "Miner Node");
 
         for (const [index, rpcProvider] of rpcNodeProviders.entries()) {
             const rpcBlockNumber = await getBlockNumber(rpcProvider, `RPC Node ${RPC_PORT_NODE_LIST[index]}`);
-            if (rpcBlockNumber === bootnodeBlockNumber && rpcBlockNumber === minernodeBlockNumber) {
-                console.log(`RPC Node ${RPC_PORT_NODE_LIST[index]} is synchronized.`);
-            } else {
-                console.warn(`RPC Node ${RPC_PORT_NODE_LIST[index]} is NOT synchronized.`);
-            }
+            console.log(`RPC Node ${RPC_PORT_NODE_LIST[index]} block number: ${rpcBlockNumber}`);
+            
+            // if (rpcBlockNumber === bootnodeBlockNumber && rpcBlockNumber === minernodeBlockNumber) {
+            //     console.log(`RPC Node ${RPC_PORT_NODE_LIST[index]} is synchronized.`);
+            // } else {
+            //     console.warn(`RPC Node ${RPC_PORT_NODE_LIST[index]} is NOT synchronized.`);
+            // }
         }
 
         console.log("\n--- Performing Transaction Test ---");
         if (rpcNodeProviders.length > 0) {
             const recipientAddress = Wallet.createRandom().address; // Generate a random address for the recipient
-            const initialMinerBalance = await checkAccountBalance(minernodeProvider, `0x${minernodeAddress}`, "Miner Node (Pre-Tx)");
+            const initialMinerBalance = await checkAccountBalance(rpcNodeProviders[0], `0x${minernodeAddress}`, "Miner Node (Pre-Tx)");
             const initialRecipientBalance = await checkAccountBalance(rpcNodeProviders[0], recipientAddress, "Recipient (Pre-Tx)");
 
             const amountToSend = "0.0001"; // Amount in ETH
             await sendTransaction(minernodeSigner, recipientAddress, amountToSend, "Miner Node");
 
-            const finalMinerBalance = await checkAccountBalance(minernodeProvider, `0x${minernodeAddress}`, "Miner Node (Post-Tx)");
+            const finalMinerBalance = await checkAccountBalance(rpcNodeProviders[0], `0x${minernodeAddress}`, "Miner Node (Post-Tx)");
             const finalRecipientBalance = await checkAccountBalance(rpcNodeProviders[0], recipientAddress, "Recipient (Post-Tx)");
 
             const expectedMinerBalanceChange = initialMinerBalance - parseEther(amountToSend);

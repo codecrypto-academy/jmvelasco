@@ -1,29 +1,36 @@
 import Docker from "dockerode";
-import { PROJECT_LABEL, P2P_RPC_PORT } from "../constants";
+import { P2P_PORT, PROJECT_LABEL, RPC_PORT } from "../constants";
 import { BesuNodeConfig, BesuNodeType, NodeIdentityFiles } from "../types";
 
 export async function createBesuNode(docker: Docker, nodeConfig: BesuNodeConfig, nodeIdentityFiles: NodeIdentityFiles): Promise<string> {
 
     const nodeIdentityPath = `${process.cwd()}/${nodeConfig.network.name}`;
 
-    // const generatePortBindings = (config: BesuNodeConfig) => {
-    //     const portBindings: { [key: string]: Array<{ HostPort: string }> } = {};
+    const generatePortBindings = (config: BesuNodeConfig) => {
+        const portBindings: { [key: string]: Array<{ HostPort: string }> } = {};
         
-    //     // Puerto P2P (siempre el configurado)
-    //     portBindings[`${config.hostPort}/tcp`] = [{ HostPort: config.hostPort.toString() }];
+        // Puerto P2P (siempre el configurado)
+        portBindings[`${P2P_PORT}/tcp`] = [{ HostPort: config.hostPort.toString() }];
         
-    //     // Para RPC: puertos específicos adicionales
-    //     if (config.type === BesuNodeType.RPC) {
-    //         portBindings['8545/tcp'] = [{ HostPort: '8545' }];
-    //         portBindings['8546/tcp'] = [{ HostPort: '8546' }];
-    //         portBindings['8547/tcp'] = [{ HostPort: '8547' }];
-    //     }
+        // Para RPC: puertos específicos adicionales
+        if (config.type === BesuNodeType.RPC) {
+            const basePort = config.hostPort;
+            const rpcHttpPort = basePort + 1000;
+            const rpcWsPort  = basePort + 2000;
+            const graphqlPort  = basePort + 3000;
+            portBindings['8545/tcp'] = [{ HostPort: rpcHttpPort.toString() }];
+            portBindings['8546/tcp'] = [{ HostPort: rpcWsPort.toString() }];
+            portBindings['8547/tcp'] = [{ HostPort: graphqlPort.toString() }];
+        } else {
+            // Puerto de métricas
+            const metricsPort = config.hostPort + 1000;
+            portBindings['9545/tcp'] = [{ HostPort: metricsPort.toString() }];
+        }
         
-    //     // Puerto de métricas
-    //     portBindings['9545/tcp'] = [{ HostPort: '9545' }];
         
-    //     return portBindings;
-    // };
+        
+        return portBindings;
+    };
 
 
     const containerConfig: Docker.ContainerCreateOptions = {
@@ -41,9 +48,7 @@ export async function createBesuNode(docker: Docker, nodeConfig: BesuNodeConfig,
             "project": PROJECT_LABEL,
         },
         HostConfig: {
-            PortBindings: {
-                [`${P2P_RPC_PORT}/tcp`]: [{ HostPort: nodeConfig.hostPort.toString() }]
-            },
+            PortBindings: generatePortBindings(nodeConfig),
             Binds: [`${nodeIdentityPath}:/data`]
         },
         NetworkingConfig: {

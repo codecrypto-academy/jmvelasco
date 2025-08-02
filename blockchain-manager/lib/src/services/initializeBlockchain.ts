@@ -38,6 +38,7 @@ export async function initializeBlockchainNetwork(docker: Docker, chainId: numbe
         chainId,
         initialValidators: [`0x${signer.address}`],
         preAllocatedAccounts: [
+            { address: `0xb650c765f7E3288deBE8909D89261bD27354811C`, balance: '0xad78ebc5ac6200000' },
             { address: `0x${userAccounts[0].address}`, balance: '0xad78ebc5ac6200000' },
             { address: `0x${userAccounts[1].address}`, balance: '0xad78ebc5ac6200000' },
             { address: `0x${userAccounts[2].address}`, balance: '0xad78ebc5ac6200000' },
