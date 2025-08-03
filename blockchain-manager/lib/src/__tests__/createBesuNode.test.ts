@@ -1,6 +1,6 @@
 import Docker from "dockerode";
 import path from "path";
-import { PROJECT_LABEL } from "../constants";
+import { P2P_PORT, PROJECT_LABEL } from "../constants";
 import { createBesuNode } from "../services/createBesuNode";
 import { BesuNodeConfig, BesuNodeType } from "../types";
 
@@ -19,7 +19,7 @@ describe('createNode', () => {
             ip: "127.0.0.1"
         },
         hostPort: 8888,
-        type: BesuNodeType.RPC
+        type: BesuNodeType.SIGNER
     };
     const nodeIdentityPath = `${process.cwd()}/${nodeConfigStub.network.name}`;
     const nodeIdentityFilesStub = {
@@ -47,9 +47,6 @@ describe('createNode', () => {
             name: nodeConfigStub.name,
             Cmd: [
                 `--config-file=/data/${nodeIdentityFilesStub.configFile}`,
-                `--data-path=/data/${nodeConfigStub.name}/data`,
-                `--node-private-key-file=/data/${nodeIdentityFilesStub.privateKeyFile}`,
-                `--genesis-file=/data/genesis.json`
             ],
             Labels: {
                 "node": nodeConfigStub.name,
@@ -58,7 +55,8 @@ describe('createNode', () => {
             },
             HostConfig: {
                 PortBindings: {
-                    ['8545/tcp']: [{ HostPort: nodeConfigStub.hostPort.toString() }]
+                    [`${P2P_PORT}/tcp`]: [{ HostPort: nodeConfigStub.hostPort.toString() }],
+                    [`9545/tcp`]: [{ HostPort: (nodeConfigStub.hostPort + 1000).toString() }]
                 },
                 Binds: [`${nodeIdentityPath}:/data`]
             },
@@ -99,13 +97,6 @@ describe('createNode', () => {
             name: nodeConfigStub.name,
             Cmd: [
                 `--config-file=/data/${nodeIdentityFilesStub.configFile}`,
-                `--data-path=/data/${nodeConfigStub.name}/data`,
-                `--node-private-key-file=/data/${nodeIdentityFilesStub.privateKeyFile}`,
-                `--genesis-file=/data/genesis.json`,
-                `--miner-enabled=true`,
-                `--miner-coinbase=${nodeIdentityFilesStub.addressFile}`,
-                `--min-gas-price=0`,
-                `--bootnodes="${nodeIdentityFilesStub.enodeFile}"`
             ],
             Labels: {
                 "node": nodeConfigStub.name,
@@ -114,7 +105,8 @@ describe('createNode', () => {
             },
             HostConfig: {
                 PortBindings: {
-                    ['8545/tcp']: [{ HostPort: nodeConfigStub.hostPort.toString() }]
+                    [`${P2P_PORT}/tcp`]: [{ HostPort: nodeConfigStub.hostPort.toString() }],
+                    [`9545/tcp`]: [{ HostPort: (nodeConfigStub.hostPort + 1000).toString() }]
                 },
                 Binds: [`${nodeIdentityPath}:/data`]
             },
