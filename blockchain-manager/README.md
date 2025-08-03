@@ -28,15 +28,25 @@ GITHUB: https://github.com/codecrypto-academy/web25-besu-2025.git
     - In this library we will create tests to validate the node
     - DELIVERABLE: Library code with passing tests
 - Level 3. 2 Points:
-    - Create a REST API using NextJS in TypeScript that: - Uses the library developed in level 2,  allowing Creating, Deleting, Adding/Removing nodes to a network
+    - Pre requisites
+        - Update library developed in level 2 avoiding hardcoded constants and to ensure minimal information provided externally and most of it can be provided externally
+        - What is the minimal nodes configuration must to be created? 
+        - Are some node can't be deleted in order the blockchain keeps working ? 
+            - For example the bootnode and signer might not be able to remove it
+        - How can be added a new signer to the blockchain ?
+        - Confirm if only RPC nodes makes sense to be the ones allowed to CRUD operations
+    - Create a REST API using NextJS in TypeScript that: - Uses the library developed in level 2, allowing:
+        - Creating, 
+        - Deleting, 
+        - Adding/Removing 
+      nodes to a network        
+
     DELIVERABLE: Backend code
 - Level 4. 2 Points:
     - Create a FRONTEND in the same project that uses the REST API to handle network creation
     DELIVERABLE: Frontend code
-
 - Level 5
     - With the network running, be able to add a new miner node
-
 - Level 6
     - Expose docker services from a VPS
     - Deploy full proyect in the VPS
