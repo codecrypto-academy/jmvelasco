@@ -7,7 +7,7 @@
     "dev": "nodemon",
     "build": "rimraf ./dist && tsc",
     "start": "npm run build && node dist/app.js",
-    "test:e2e": "ts-node src/test_network",
+    "test:e2e": "ts-node src/__tests__/e2e",
     "test": "jest",
     "test:coverage": "jest --coverage"
   },

@@ -28,13 +28,21 @@ export async function initializeBlockchainNetwork(docker: Docker, chainId: numbe
 
     const blockchainDataPath = path.join(process.cwd(), name);
     if (fs.existsSync(blockchainDataPath)) {
-        console.log(`Removing existing blockchain data at: ${blockchainDataPath}`);
-        fs.rmSync(blockchainDataPath, { recursive: true, force: true });
+        try {
+            fs.rmSync(blockchainDataPath, { recursive: true, force: true });
+            if (fs.existsSync(blockchainDataPath)) {
+                console.error(`Failed to remove blockchain data at: ${blockchainDataPath}`);
+            } else {
+                console.log(`Successfully removed existing blockchain data at: ${blockchainDataPath}`);
+            }
+        } catch (err) {
+            console.error(`Error removing blockchain data at ${blockchainDataPath}:`, err);
+        }
     }
 
     const signer = generateSignerAccount(signerIp);
     const bootnode = bootnodeIp ? generateBootnodeAccount(bootnodeIp) : null;
-    const userAccounts = generateUserAccounts(5); 
+    const userAccounts = generateUserAccounts(5);
     const genesisFilePath = createCliqueGenesisFile(blockchainDataPath, {
         chainId,
         initialValidators: [`0x${signer.address}`],
@@ -99,7 +107,7 @@ function generateSignerAccount(signerIp: string) {
 }
 
 function generateBootnodeAccount(ip: string) {
-    const identity = generateNodeIdentity(ip); 
+    const identity = generateNodeIdentity(ip);
     return {
         publicKey: identity.publicKey,
         privateKey: identity.privateKey,

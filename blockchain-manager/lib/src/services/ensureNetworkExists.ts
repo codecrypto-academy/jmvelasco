@@ -31,6 +31,7 @@ export async function ensureNetworkExists(docker: Docker, networkConfig: { name:
         }
 
         const network = await docker.createNetwork(networkPayload);
+        
         return network.id;
     } catch (error) {
         throw error;

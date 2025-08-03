@@ -1,7 +1,9 @@
 import { JsonRpcProvider, Wallet, formatEther, parseEther } from "ethers";
 import path from "path";
 import fs from "fs";
-import { SIGNERNODE_PORT, RPC_PORT_NODE_LIST, BOOTNODE_PORT, NETWORK_NAME } from "./constants";
+import { RPC_PORT_NODE_LIST, NETWORK_NAME } from "../constants";
+import { startBlockchain } from "../startBlockchain";
+import { removeBlockchain } from "../removeBlockchain";
 
 const getProvider = (port: number) => {
     return new JsonRpcProvider(`http://localhost:${port}`);
@@ -30,7 +32,7 @@ const sendTransaction = async (
     nodeName: string
 ) => {
     console.log(`Attempting to send ${amount} ETH from ${signer.address} to ${toAddress} on ${nodeName}...`);
-    
+
     // Get current network state for better transaction configuration
     const provider = signer.provider as JsonRpcProvider;
     if (!provider) {
@@ -39,9 +41,9 @@ const sendTransaction = async (
     const nonce = await provider.getTransactionCount(signer.address, 'pending');
     // Use a higher gas price for PoA networks - many require minimum 20 Gwei
     const suggestedGasPrice = parseEther("0.000000020"); // 20 Gwei - higher for PoA reliability
-    
+
     console.log(`Transaction details: nonce=${nonce}, gasPrice=${suggestedGasPrice.toString()}, gasLimit=21000`);
-    
+
     const tx = {
         to: toAddress,
         value: parseEther(amount),
@@ -50,11 +52,11 @@ const sendTransaction = async (
         nonce: nonce,
         type: 0 // Use legacy transaction type for better compatibility
     };
-    
+
     const response = await signer.sendTransaction(tx);
     console.log(`Transaction submitted. Hash: ${response.hash}`);
     console.log(`Waiting for confirmation...`);
-    
+
     try {
         const receipt = await response.wait(1, 60000); // Increased to 60 seconds
         console.log(`Transaction successful on ${nodeName}. Tx Hash: ${response.hash}`);
@@ -79,13 +81,21 @@ const sendTransaction = async (
     }
 };
 
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 (async () => {
     try {
+
+        await startBlockchain();
+        console.log("\n");
+        console.log("➡️ La red blockchain se está inicializando...");
+        await sleep(30000); // Pausa la ejecución por 10 segundos (10000 milisegundos)
+
         const blockchainDataPath = path.join(process.cwd(), NETWORK_NAME); // Assuming blockchain-manager is the network name
 
         // --- Configuration and Initialization ---
-        // const minernodeProvider = getProvider(SIGNERNODE_PORT);
-        // const bootnodeProvider = getProvider(BOOTNODE_PORT);
         const rpcNodeProviders = RPC_PORT_NODE_LIST.map(port => {
             return getProvider(port + 1000);
         });
@@ -96,8 +106,8 @@ const sendTransaction = async (
         const minernodeSigner = getSigner(minernodePrivateKey, rpcNodeProviders[0]);
 
         // --- Validation Steps ---
-
-        console.log("\n--- Checking Account Balances ---");
+        console.log("\n");
+        console.log("➡️ Checking Account Balances");
         await checkAccountBalance(rpcNodeProviders[1], `0x${minernodeAddress}`, "Signer Node");
 
         // Example: Check balance of a dummy RPC node address (replace with actual RPC node address if needed)
@@ -105,37 +115,30 @@ const sendTransaction = async (
         if (rpcNodeProviders.length > 0) {
             await checkAccountBalance(rpcNodeProviders[0], `0x${minernodeAddress}`, `RPC Node ${RPC_PORT_NODE_LIST[0]}`);
         } else {
-            console.warn("No RPC nodes configured to check balances.");
+            console.warn("⚠️ No RPC nodes configured to check balances.");
         }
 
-
-        console.log("\n--- Checking Node Synchronization ---");
-        const bootnodeBlockNumber = await getBlockNumber(rpcNodeProviders[1], "Bootnode");
-        const minernodeBlockNumber = await getBlockNumber(rpcNodeProviders[0], "Signer Node");
+        console.log("\n");
+        console.log("➡️ Checking Node Synchronization");
+        const blockNumberChecker = await getBlockNumber(rpcNodeProviders[0], "Block number reference");
 
         for (const [index, rpcProvider] of rpcNodeProviders.entries()) {
             const rpcBlockNumber = await getBlockNumber(rpcProvider, `RPC Node ${RPC_PORT_NODE_LIST[index]}`);
-            console.log(`RPC Node ${RPC_PORT_NODE_LIST[index]} block number: ${rpcBlockNumber}`);
-            
-            if (rpcBlockNumber === bootnodeBlockNumber && rpcBlockNumber === minernodeBlockNumber) {
-                console.log(`RPC Node ${RPC_PORT_NODE_LIST[index]} is synchronized.`);
+            console.log(`➡️ RPC Node ${RPC_PORT_NODE_LIST[index]} block number: ${rpcBlockNumber}`);
+
+            if (rpcBlockNumber === blockNumberChecker || rpcBlockNumber + 1 === blockNumberChecker) {
+                console.log(`✅ RPC Node ${RPC_PORT_NODE_LIST[index]} is synchronized.`);
             } else {
-                console.warn(`RPC Node ${RPC_PORT_NODE_LIST[index]} is NOT synchronized.`);
+                console.warn(`⚠️ RPC Node ${RPC_PORT_NODE_LIST[index]} is NOT synchronized.`);
             }
         }
 
-        console.log("\n--- Network Health Check ---");
+        console.log("\n");
+        console.log("➡️ Network Health Check");
         // Check if nodes are mining
-        const latestBlock = await rpcNodeProviders[0].getBlock('latest');
-        if (!latestBlock) {
-            console.error("❌ Could not retrieve latest block!");
-            return;
-        }
-        console.log(`Latest block timestamp: ${new Date(latestBlock.timestamp * 1000)}`);
-        console.log(`Block miner: ${latestBlock.miner}`);
 
         // Wait for a new block to ensure mining is active
-        console.log("Waiting for new block to confirm mining is active...");
+        console.log("- Waiting for new block to confirm mining is active...");
         const currentBlock = await rpcNodeProviders[0].getBlockNumber();
         let newBlock = currentBlock;
         let attempts = 0;
@@ -152,7 +155,8 @@ const sendTransaction = async (
             return;
         }
 
-        console.log("\n--- Performing Transaction Test ---");
+        console.log("\n");
+        console.log("➡️ Performing Transaction Test");
         if (rpcNodeProviders.length > 0) {
             const recipientAddress = Wallet.createRandom().address; // Generate a random address for the recipient
             const initialMinerBalance = await checkAccountBalance(rpcNodeProviders[0], minernodeSigner.address, "Signer Node (Pre-Tx)");
@@ -164,18 +168,33 @@ const sendTransaction = async (
             const finalMinerBalance = await checkAccountBalance(rpcNodeProviders[0], minernodeSigner.address, "Signer Node (Post-Tx)");
             const finalRecipientBalance = await checkAccountBalance(rpcNodeProviders[0], recipientAddress, "Recipient (Post-Tx)");
 
-            const expectedMinerBalanceChange = initialMinerBalance - parseEther(amountToSend);
             if (finalMinerBalance < initialMinerBalance && finalRecipientBalance > initialRecipientBalance) {
-                console.log("Transaction successful: Balances updated as expected.");
+                console.log("✅ Transaction successful: Balances updated as expected.");
             } else {
-                console.error("Transaction failed: Balances did NOT update as expected.");
+                console.error("❌ Transaction failed: Balances did NOT update as expected.");
             }
 
         } else {
-            console.warn("Cannot perform transaction test: No RPC nodes available.");
+            console.warn(" ❌Cannot perform transaction test: No RPC nodes available.");
+        }
+
+        console.log("\n");
+        removeBlockchain();
+        if (fs.existsSync(blockchainDataPath)) {
+            try {
+                fs.rmSync(blockchainDataPath, { recursive: true, force: true });
+                if (fs.existsSync(blockchainDataPath)) {
+                    console.error(`❌ Failed to remove blockchain data at: ${blockchainDataPath}`);
+                } else {
+                    console.log(`✅ Successfully removed blockchain`);
+                }
+            } catch (err) {
+                console.error(`❌ Error removing blockchain data at ${blockchainDataPath}:`, err);
+            }
         }
 
     } catch (error) {
-        console.error("Network validation failed:", error);
+        console.error("❌ Network validation failed:", error);
+        removeBlockchain();
     }
 })(); 
