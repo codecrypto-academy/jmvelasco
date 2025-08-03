@@ -208,7 +208,7 @@ This project provides two distinct methods for managing a Hyperledger Besu block
 - **Library (`/lib`)**: A TypeScript application for programmatic control of the network. It includes:
     -   Configuration constants in `src/constants.ts`.
     -   Main application logic in `src/app.ts` for node creation.
-    -   End-to-end network tests in `src/test_network.ts`.
+    -   End-to-end network tests in `src/__tests_/e2e.ts`.
 -   **Web Interface (`/web`)**: (Planned/In Progress) This component is for a web interface that will interact with the library. Note: This directory may not yet exist in the current project structure but is part of the overall plan.
 
 #### **Prerequisites**
@@ -248,11 +248,11 @@ yarn dev            # Development server with nodemon
 yarn build          # Compile TypeScript to JavaScript
 yarn start          # Run the main application (creates network nodes)
 yarn test           # Run unit tests
-yarn check-blockchain # Run end-to-end network tests
+yarn test:e2e:      # Run end-to-end network tests
 ```
 
 #### **Testing**
-End-to-end network tests for the TypeScript library are located in `blockchain-manager/lib/src/test_network.ts` and can be run with `yarn check-blockchain` from the `blockchain-manager/lib` directory.
+End-to-end network tests for the TypeScript library are located in `blockchain-manager/lib/src/__tests__/e2e.ts` and can be run with `yarn test:e2e` from the `blockchain-manager/lib` directory.
 
 ---
 
