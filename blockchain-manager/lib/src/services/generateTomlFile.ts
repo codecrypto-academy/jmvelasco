@@ -338,58 +338,6 @@ rpc-max-logs-range=5000
 }
 
 
-// Ejemplos de uso
-// export const configExamples = {
-//     bootnode: {
-//         name: 'bootnode-01',
-//         network: { name: 'dev-network', ip: '10.0.0.1' },
-//         hostPort: 30301,
-//         type: BesuNodeType.BOOTNODE,
-//         options: {
-//             dataPath: './data/bootnode-01',
-//             genesisPath: './genesis.json',
-//             keyPath: './keys/bootnode-01',
-//             maxMemory: '1g',
-//             logLevel: 'INFO'
-//         }
-//     },
-
-//     signer: {
-//         name: 'signer-01',
-//         network: { name: 'dev-network', ip: '10.0.0.10' },
-//         hostPort: 30303,
-//         type: BesuNodeType.SIGNER,
-//         options: {
-//             minerEnabled: true,
-//             minerCoinbase: '0x627306090abaB3A6e1400e9345bC60c78a8BEf57',
-//             minGasPrice: 0,
-//             bootnodes: 'enode://bootnode@10.0.0.1:30301',
-//             dataPath: './data/signer-01',
-//             genesisPath: './genesis.json', 
-//             keyPath: './keys/signer-01',
-//             maxMemory: '4g',
-//             logLevel: 'INFO'
-//         }
-//     },
-
-//     rpc: {
-//         name: 'rpc-gateway',
-//         network: { name: 'dev-network', ip: '10.0.0.20' },
-//         hostPort: 30303,
-//         type: BesuNodeType.RPC,
-//         options: {
-//             minerEnabled: false,
-//             bootnodes: 'enode://bootnode@10.0.0.1:30301',
-//             dataPath: './data/rpc-gateway',
-//             genesisPath: './genesis.json',
-//             keyPath: './keys/rpc-gateway', 
-//             maxMemory: '6g',
-//             logLevel: 'WARN'
-//         }
-//     }
-// };
-
-
 export function createNodeConfigurationFiles(nodeConfig: BesuNodeConfig, nodeIdentity: {
     publicKey: string;
     privateKey: string;
