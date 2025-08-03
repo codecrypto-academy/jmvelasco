@@ -123,13 +123,13 @@ yarn start
 cd ../..
 ```
 
-### 4. Ejecutar Pruebas de Red End-to-End (`lib/src/test_network.ts`)
+### 4. Ejecutar Pruebas de Red End-to-End (`lib/src/__tests__/e2e.ts`)
 
 El archivo `lib/src/test_network.ts` actúa como una prueba de extremo a extremo para verificar que los nodos creados por la aplicación `lib` funcionan correctamente, incluyendo la verificación de balances y transacciones. Para ejecutarlo:
 
 ```bash
 cd blockchain-manager/lib
-yarn check-blockchain
+yarn test:e2e
 cd ../..
 ```
 
@@ -152,7 +152,7 @@ Todas las configuraciones importantes para la red gestionada por la librería `l
 
 ### 6. Comandos Disponibles de la Librería (`lib/package.json`)
 
-Además de `start` y `check-blockchain`, los scripts definidos en `lib/package.json` son:
+Además de `start` y `test:e2e`, los scripts definidos en `lib/package.json` son:
 
 -   `dev`: Ejecuta `nodemon` para desarrollo con recarga en caliente.
 -   `build`: Compila el código TypeScript a JavaScript.
