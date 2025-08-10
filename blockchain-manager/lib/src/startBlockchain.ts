@@ -1,24 +1,23 @@
 import Docker from "dockerode";
 import fs from "fs";
 import path from "path";
-import {
-    CHAIN_ID
-} from "./constants";
 import { createBesuNode } from "./services/createBesuNode";
 import { createNodeConfigurationFiles } from "./services/generateTomlFile";
 import {
-    generateNodeIdentity,
-    initializeBlockchainNetwork,
+  generateNodeIdentity,
+  initializeBlockchainNetwork,
 } from "./services/initializeBlockchain";
 import { BesuNodeConfig, BesuNodeType } from "./types";
 
 const docker = new Docker();
 export async function startBlockchain({
+  chainId,
   network,
   bootnode,
   signer,
   rpcNodes,
 }: {
+  chainId: number;
   network: {
     name: string;
     subnet: string;
@@ -46,7 +45,7 @@ export async function startBlockchain({
       genesisFilePath,
       signer: _signer,
       bootnode: _bootnode,
-    } = await initializeBlockchainNetwork(docker, CHAIN_ID, {
+    } = await initializeBlockchainNetwork(docker, chainId, {
       name: network.name,
       subnet: network.subnet,
       gateway: network.gateway,
