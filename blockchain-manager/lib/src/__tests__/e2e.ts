@@ -1,9 +1,22 @@
 import { JsonRpcProvider, Wallet, formatEther, parseEther } from "ethers";
-import path from "path";
 import fs from "fs";
-import { RPC_PORT_NODE_LIST, NETWORK_NAME } from "../constants";
-import { startBlockchain } from "../startBlockchain";
+import path from "path";
 import { removeBlockchain } from "../removeBlockchain";
+import { startBlockchain } from "../startBlockchain";
+
+import {
+    BOOTNODE_IP,
+    BOOTNODE_NAME,
+    BOOTNODE_PORT,
+    NETWORK_GATEWAY,
+    NETWORK_NAME,
+    NETWORK_SUBNET,
+    RPC_PORT_NODE_LIST,
+    SIGNERNODE_IP,
+    SIGNERNODE_NAME,
+    SIGNERNODE_PORT
+} from "../constants";
+import { generateIpAddress } from "../services/generateIpAddress";
 
 const getProvider = (port: number) => {
     return new JsonRpcProvider(`http://localhost:${port}`);
@@ -88,7 +101,28 @@ function sleep(ms: number): Promise<void> {
 (async () => {
     try {
 
-        await startBlockchain();
+        await startBlockchain({
+                network: {
+                    name: NETWORK_NAME,
+                    subnet: NETWORK_SUBNET,
+                    gateway: NETWORK_GATEWAY,
+                },
+                bootnode: {
+                    ip: BOOTNODE_IP,
+                    name: BOOTNODE_NAME,
+                    hostPort: BOOTNODE_PORT,
+                },
+                signer: {
+                    ip: SIGNERNODE_IP,
+                    name: SIGNERNODE_NAME,
+                    hostPort: SIGNERNODE_PORT,
+                },
+                rpcNodes: RPC_PORT_NODE_LIST.map((port, index) => ({
+                    ip: `${generateIpAddress(NETWORK_SUBNET, index)}`,
+                    name: `rpc-node-${index + 1}`,
+                    hostPort: port,
+                })),
+            });
         console.log("\n");
         console.log("➡️ La red blockchain se está inicializando...");
         await sleep(30000); // Pausa la ejecución por 10 segundos (10000 milisegundos)

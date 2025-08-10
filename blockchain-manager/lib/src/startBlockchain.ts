@@ -1,110 +1,259 @@
 import Docker from "dockerode";
+import fs from "fs";
+import path from "path";
 import {
-    BOOTNODE_IP,
-    BOOTNODE_NAME,
-    BOOTNODE_PORT,
-    CHAIN_ID,
-    SIGNERNODE_IP,
-    SIGNERNODE_NAME,
-    SIGNERNODE_PORT,
-    NETWORK_GATEWAY,
-    NETWORK_NAME,
-    NETWORK_SUBNET,
-    RPC_PORT_NODE_LIST,
+    CHAIN_ID
 } from "./constants";
 import { createBesuNode } from "./services/createBesuNode";
-import { BesuNodeConfig, BesuNodeType } from "./types";
-import { generateIpAddress } from "./services/generateIpAddress";
-import { generateNodeIdentity, initializeBlockchainNetwork } from "./services/initializeBlockchain";
 import { createNodeConfigurationFiles } from "./services/generateTomlFile";
+import {
+    generateNodeIdentity,
+    initializeBlockchainNetwork,
+} from "./services/initializeBlockchain";
+import { BesuNodeConfig, BesuNodeType } from "./types";
 
-export async function startBlockchain() {
-    const docker = new Docker();
-    try {
-    
-        const { blockchainDataPath, genesisFilePath, signer, bootnode } = await initializeBlockchainNetwork(
-            docker,
-            CHAIN_ID,
-            {
-                name: NETWORK_NAME,
-                subnet: NETWORK_SUBNET,
-                gateway: NETWORK_GATEWAY,
-                bootnodeIp: BOOTNODE_IP,
-                signerIp: SIGNERNODE_IP,
-            }
-        );
-    
-        if (bootnode) {
-            const bootnodeNodeConfig = {
-                name: BOOTNODE_NAME,
-                configPath: `${blockchainDataPath}/${BOOTNODE_NAME}/config`,
-                network: { name: NETWORK_NAME, ip: BOOTNODE_IP },
-                hostPort: BOOTNODE_PORT,
-                type: BesuNodeType.BOOTNODE,
-                options: {
-                    dataPath: `${blockchainDataPath}/${BOOTNODE_NAME}`,
-                    genesisPath: genesisFilePath,
-                    keyPath: `${blockchainDataPath}/${BOOTNODE_NAME}/keys`,
-                    maxMemory: '1g',
-                    logLevel: 'INFO'
-                }
-            }
-            const bootnodeNodeConfigFiles = createNodeConfigurationFiles(bootnodeNodeConfig, bootnode);
-            await createBesuNode(docker, bootnodeNodeConfig, bootnodeNodeConfigFiles);
-    
-            const signerNodeConfig = {
-                name: SIGNERNODE_NAME,
-                configPath: `${blockchainDataPath}/${SIGNERNODE_NAME}/config`,
-                network: { name: NETWORK_NAME, ip: SIGNERNODE_IP },
-                hostPort: SIGNERNODE_PORT,
-                type: BesuNodeType.SIGNER,
-                options: {
-                    minerEnabled: true,
-                    minerCoinbase: signer.address,
-                    minGasPrice: 0,
-                    bootnodes: bootnode ? bootnode.enode : '',
-                    dataPath: `${blockchainDataPath}/${SIGNERNODE_NAME}`,
-                    genesisPath: genesisFilePath,
-                    keyPath: `${blockchainDataPath}/${SIGNERNODE_NAME}/keys`,
-                    maxMemory: '4g',
-                    logLevel: 'INFO'
-                }
-            }
-    
-            const signerNodeConfigFiles = createNodeConfigurationFiles(signerNodeConfig, signer);
-            await createBesuNode(docker, signerNodeConfig, signerNodeConfigFiles);
-    
-            if (RPC_PORT_NODE_LIST?.length > 0) {
-                for (const [index, rpcNodePort] of RPC_PORT_NODE_LIST.entries()) {
-                    const ip = generateIpAddress(NETWORK_SUBNET, index);
-                    const rpcNodeIdentity = generateNodeIdentity(ip);
-    
-                    const rpcnodeConfig: BesuNodeConfig = {
-                        name: `RPC_${rpcNodePort}_NODE`,
-                        configPath: `${blockchainDataPath}/RPC_${rpcNodePort}_NODE/config`,
-                        network: {
-                            name: NETWORK_NAME,
-                            ip
-                        },
-                        hostPort: rpcNodePort,
-                        type: BesuNodeType.RPC,
-                        options: {
-                            minerEnabled: false,
-                            bootnodes: bootnode.enode,
-                            dataPath: `${blockchainDataPath}/RPC_${rpcNodePort}_NODE`,
-                            genesisPath: genesisFilePath,
-                            keyPath: `${blockchainDataPath}/RPC_${rpcNodePort}_NODE/keys`,
-                            maxMemory: '6g',
-                            logLevel: 'INFO'
-                        }
-                    };
-    
-                    const rpcNodeConfigFiles = createNodeConfigurationFiles(rpcnodeConfig, rpcNodeIdentity);
-                    await createBesuNode(docker, rpcnodeConfig, rpcNodeConfigFiles);
-                }
-            }
+const docker = new Docker();
+export async function startBlockchain({
+  network,
+  bootnode,
+  signer,
+  rpcNodes,
+}: {
+  network: {
+    name: string;
+    subnet: string;
+    gateway: string;
+  };
+  bootnode: {
+    ip: string;
+    hostPort: number;
+    name: string;
+  };
+  signer: {
+    ip: string;
+    hostPort: number;
+    name: string;
+  };
+  rpcNodes?: {
+    ip: string;
+    hostPort: number;
+    name: string;
+  }[];
+}) {
+  try {
+    const {
+      blockchainDataPath,
+      genesisFilePath,
+      signer: _signer,
+      bootnode: _bootnode,
+    } = await initializeBlockchainNetwork(docker, CHAIN_ID, {
+      name: network.name,
+      subnet: network.subnet,
+      gateway: network.gateway,
+      bootnodeIp: bootnode.ip,
+      signerIp: signer.ip,
+    });
+
+    if (_bootnode) {
+      await addBootNode(
+        bootnode,
+        blockchainDataPath,
+        network,
+        genesisFilePath,
+        _bootnode,
+        docker
+      );
+      await addSignerNode(
+        signer,
+        blockchainDataPath,
+        network,
+        _signer,
+        _bootnode,
+        genesisFilePath
+      );
+
+      if (rpcNodes && rpcNodes.length > 0) {
+        for (const [index, rpcNode] of rpcNodes.entries()) {
+          await addRPCNode(
+            rpcNode,
+            blockchainDataPath,
+            network,
+            _bootnode,
+            genesisFilePath
+          );
         }
-    } catch (error) {
-        throw error;
+      }
     }
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function addRPCNode(
+  rpcNode: { ip: string; hostPort: number; name: string },
+  blockchainDataPath: string,
+  network: { name: string; subnet: string; gateway: string },
+  _bootnode: {
+    publicKey: string;
+    privateKey: string;
+    address: string;
+    enode: string;
+  },
+  genesisFilePath: string
+) {
+  const rpcNodeIdentity = generateNodeIdentity(rpcNode.ip);
+
+  const rpcnodeConfig: BesuNodeConfig = {
+    name: rpcNode.name,
+    configPath: `${blockchainDataPath}/${rpcNode.name}/config`,
+    network: {
+      name: network.name,
+      ip: rpcNode.ip,
+    },
+    hostPort: rpcNode.hostPort,
+    type: BesuNodeType.RPC,
+    options: {
+      minerEnabled: false,
+      bootnodes: _bootnode.enode,
+      dataPath: `${blockchainDataPath}/${rpcNode}`,
+      genesisPath: genesisFilePath,
+      keyPath: `${blockchainDataPath}/${rpcNode}/keys`,
+      maxMemory: "6g",
+      logLevel: "INFO",
+    },
+  };
+
+  const rpcNodeConfigFiles = createNodeConfigurationFiles(
+    rpcnodeConfig,
+    rpcNodeIdentity
+  );
+  await createBesuNode(docker, rpcnodeConfig, rpcNodeConfigFiles);
+}
+
+async function addSignerNode(
+  signer: { ip: string; hostPort: number; name: string },
+  blockchainDataPath: string,
+  network: { name: string; subnet: string; gateway: string },
+  _signer: {
+    publicKey: string;
+    privateKey: string;
+    address: string;
+    enode: string;
+  },
+  _bootnode: {
+    publicKey: string;
+    privateKey: string;
+    address: string;
+    enode: string;
+  },
+  genesisFilePath: string
+) {
+  const signerNodeConfig = {
+    name: signer.name,
+    configPath: `${blockchainDataPath}/${signer.name}/config`,
+    network: { name: network.name, ip: signer.ip },
+    hostPort: signer.hostPort,
+    type: BesuNodeType.SIGNER,
+    options: {
+      minerEnabled: true,
+      minerCoinbase: _signer.address,
+      minGasPrice: 0,
+      bootnodes: _bootnode.enode,
+      dataPath: `${blockchainDataPath}/${signer.name}`,
+      genesisPath: genesisFilePath,
+      keyPath: `${blockchainDataPath}/${signer.name}/keys`,
+      maxMemory: "4g",
+      logLevel: "INFO",
+    },
+  };
+
+  const signerNodeConfigFiles = createNodeConfigurationFiles(
+    signerNodeConfig,
+    _signer
+  );
+  await createBesuNode(docker, signerNodeConfig, signerNodeConfigFiles);
+}
+
+async function addBootNode(
+  bootnode: { ip: string; hostPort: number; name: string },
+  blockchainDataPath: string,
+  network: { name: string; subnet: string; gateway: string },
+  genesisFilePath: string,
+  _bootnode: {
+    publicKey: string;
+    privateKey: string;
+    address: string;
+    enode: string;
+  },
+  docker: Docker
+) {
+  const bootnodeNodeConfig = {
+    name: bootnode.name,
+    configPath: `${blockchainDataPath}/${bootnode.name}/config`,
+    network: { name: network.name, ip: bootnode.ip },
+    hostPort: bootnode.hostPort,
+    type: BesuNodeType.BOOTNODE,
+    options: {
+      dataPath: `${blockchainDataPath}/${bootnode.name}`,
+      genesisPath: genesisFilePath,
+      keyPath: `${blockchainDataPath}/${bootnode.name}/keys`,
+      maxMemory: "1g",
+      logLevel: "INFO",
+    },
+  };
+  const bootnodeNodeConfigFiles = createNodeConfigurationFiles(
+    bootnodeNodeConfig,
+    _bootnode
+  );
+  await createBesuNode(docker, bootnodeNodeConfig, bootnodeNodeConfigFiles);
+}
+
+async function addNode2({
+  networkName,
+  hostPort,
+  nodeName,
+  nodeIp,
+  nodeType,
+  nodeKeys,
+}: {
+  networkName: string;
+  hostPort: number;
+  nodeName: string;
+  nodeIp: string;
+  nodeType: BesuNodeType;
+  nodeKeys: {
+    publicKey: string;
+    privateKey: string;
+    address: string;
+    enode: string;
+  };
+}) {
+  const networkFinder = await docker.listNetworks({
+    filters: {
+      name: [networkName],
+    },
+  });
+  if (networkFinder.length === 0) {
+    throw new Error(`Network ${networkName} does not exist.`);
+  }
+  const blockchainDataPath = path.join(process.cwd(), networkName);
+  if (!fs.existsSync(blockchainDataPath)) {
+    throw new Error(`Network data path ${blockchainDataPath} does not exist.`);
+  }
+  const config = {
+    name: nodeName,
+    configPath: `${blockchainDataPath}/${nodeName}/config`,
+    network: { name: networkName, ip: nodeIp },
+    hostPort: hostPort,
+    type: nodeType,
+    options: {
+      dataPath: `${blockchainDataPath}/${nodeName}`,
+      genesisPath: path.join(blockchainDataPath, "genesis.json"),
+      keyPath: `${blockchainDataPath}/${nodeName}/keys`,
+      maxMemory: "1g",
+      logLevel: "INFO",
+    },
+  };
+  const configFiles = createNodeConfigurationFiles(config, nodeKeys);
+  await createBesuNode(docker, config, configFiles);
 }
