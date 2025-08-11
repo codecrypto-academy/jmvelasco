@@ -16,6 +16,7 @@ export async function startBlockchain({
   bootnode,
   signer,
   rpcNodes,
+  preAllocatedAccounts,
 }: {
   chainId: number;
   network: {
@@ -38,6 +39,10 @@ export async function startBlockchain({
     hostPort: number;
     name: string;
   }[];
+  preAllocatedAccounts?: {
+    address: string;
+    balance: string;
+  }[];
 }) {
   try {
     const {
@@ -51,6 +56,7 @@ export async function startBlockchain({
       gateway: network.gateway,
       bootnodeIp: bootnode.ip,
       signerIp: signer.ip,
+      preAllocatedAccounts,
     });
 
     if (_bootnode) {

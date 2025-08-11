@@ -1,16 +1,17 @@
 import {
-    BOOTNODE_IP,
-    BOOTNODE_NAME,
-    BOOTNODE_PORT,
-    CHAIN_ID,
-    NETWORK_GATEWAY,
-    NETWORK_NAME,
-    NETWORK_SUBNET,
-    RPC_PORT_NODE_LIST,
-    SIGNERNODE_IP,
-    SIGNERNODE_NAME,
-    SIGNERNODE_PORT,
+  BOOTNODE_IP,
+  BOOTNODE_NAME,
+  BOOTNODE_PORT,
+  CHAIN_ID,
+  NETWORK_GATEWAY,
+  NETWORK_NAME,
+  NETWORK_SUBNET,
+  RPC_PORT_NODE_LIST,
+  SIGNERNODE_IP,
+  SIGNERNODE_NAME,
+  SIGNERNODE_PORT,
 } from "./constants";
+import { deriveWalletFromMnemonic } from './services/deriveWalletFromMnemonic';
 import { generateIpAddress } from "./services/generateIpAddress";
 import { startBlockchain } from "./startBlockchain";
 
@@ -36,6 +37,10 @@ import { startBlockchain } from "./startBlockchain";
       ip: `${generateIpAddress(NETWORK_SUBNET, index)}`,
       name: `rpc-node-${index + 1}`,
       hostPort: port,
+    })),
+    preAllocatedAccounts: deriveWalletFromMnemonic().map((address) => ({
+      address,
+      balance: '0xad78ebc5ac6200000', // 100 ETH in wei
     })),
   });
 })();

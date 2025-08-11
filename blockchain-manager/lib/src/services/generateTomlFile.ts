@@ -1,15 +1,14 @@
 import fs from "fs";
-import { BesuNodeConfig, BesuNodeType } from "../types";
 import { P2P_PORT, RPC_PORT } from "../constants";
+import { BesuNodeConfig, BesuNodeType } from "../types";
 
 export class BesuTomlConfigFactory {
-    
-    /**
-     * Genera configuración TOML para un nodo BOOTNODE
-     * Optimizado para: Disponibilidad, estabilidad, descubrimiento de peers
-     */
-    static generateBootnodeConfig(config: BesuNodeConfig): string {
-        return `# ============================================
+  /**
+   * Genera configuración TOML para un nodo BOOTNODE
+   * Optimizado para: Disponibilidad, estabilidad, descubrimiento de peers
+   */
+  static generateBootnodeConfig(config: BesuNodeConfig): string {
+    return `# ============================================
 # BESU BOOTNODE CONFIGURATION
 # Nodo: ${config.name}  
 # Función: Descubrimiento de peers y estabilidad de red
@@ -19,7 +18,7 @@ export class BesuTomlConfigFactory {
 # === CONFIGURACIÓN DE RED ===
 # Puerto P2P para descubrimiento de peers
 p2p-port=${P2P_PORT}
-p2p-host="0.0.0.0"
+p2p-host="${config.network.ip}"
 
 # Máximo número de peers (alto para bootnode)
 max-peers=100
@@ -50,7 +49,7 @@ graphql-http-enabled=false
 miner-enabled=false
 
 # === LOGGING Y MONITOREO ===
-logging="${config.options?.logLevel || 'INFO'}"
+logging="${config.options?.logLevel || "INFO"}"
 
 # Métricas para monitoreo (puerto interno)
 metrics-enabled=true
@@ -73,14 +72,14 @@ min-gas-price=1000000000
 # p2p-peer-upper-bound, y log-include-events-enabled no son válidas en TOML.
 # Xmx debe pasarse como variable de entorno BESU_OPTS="-Xmx1g"
 # La poda se controla automáticamente por sync-mode y data-storage-format`;
-    }
+  }
 
-    /**
-     * Genera configuración TOML para un nodo SIGNER
-     * Optimizado para: Máxima seguridad, consenso confiable, sin exposición pública
-     */
-    static generateSignerConfig(config: BesuNodeConfig): string {
-        return `# ============================================
+  /**
+   * Genera configuración TOML para un nodo SIGNER
+   * Optimizado para: Máxima seguridad, consenso confiable, sin exposición pública
+   */
+  static generateSignerConfig(config: BesuNodeConfig): string {
+    return `# ============================================
 # BESU SIGNER NODE CONFIGURATION  
 # Nodo: ${config.name}
 # Función: Consenso PoA, creación y firma de bloques
@@ -90,7 +89,7 @@ min-gas-price=1000000000
 # === CONFIGURACIÓN DE RED ===
 # Puerto P2P (solo para peers confiables)
 p2p-port=${P2P_PORT}
-p2p-host="0.0.0.0"
+p2p-host="${config.network.ip}"
 
 # Conexiones limitadas (solo peers esenciales)
 max-peers=15
@@ -150,7 +149,7 @@ tx-pool-price-bump=10
 node-private-key-file="/data/${config.name}/keys/key.priv"
 
 # === LOGGING Y MONITOREO ===
-logging="${config.options?.logLevel || 'INFO'}"
+logging="${config.options?.logLevel || "INFO"}"
 
 # Métricas internas para monitoreo
 metrics-enabled=true
@@ -168,14 +167,14 @@ metrics-port=9545
 # - Mantener este nodo en red privada con firewall estricto
 # - Backup regular de claves privadas
 # - Monitoreo 24/7 del estado del nodo`;
-    }
+  }
 
-    /**
-     * Genera configuración TOML para un nodo RPC
-     * Optimizado para: Alto rendimiento, APIs completas, manejo de carga
-     */
-    static generateRpcConfig(config: BesuNodeConfig): string {
-        return `# ============================================
+  /**
+   * Genera configuración TOML para un nodo RPC
+   * Optimizado para: Alto rendimiento, APIs completas, manejo de carga
+   */
+  static generateRpcConfig(config: BesuNodeConfig): string {
+    return `# ============================================
 # BESU RPC NODE CONFIGURATION
 # Nodo: ${config.name}  
 # Función: Gateway para aplicaciones, APIs públicas
@@ -185,7 +184,7 @@ metrics-port=9545
 # === CONFIGURACIÓN DE RED ===
 # Puerto P2P para sincronización
 p2p-port=${P2P_PORT}
-p2p-host="0.0.0.0"
+p2p-host="${config.network.ip}"
 
 # Alto número de peers para mejor sincronización
 max-peers=50
@@ -252,7 +251,7 @@ node-private-key-file="/data/${config.name}/keys/key.priv"
 # rpc-http-tls-keystore-password-file="./tls/password"
 
 # === LOGGING Y MONITOREO ===
-logging="${config.options?.logLevel || 'WARN'}"
+logging="${config.options?.logLevel || "WARN"}"
 
 # Métricas públicas para monitoreo
 metrics-enabled=true
@@ -282,130 +281,204 @@ rpc-max-logs-range=5000
 # - Implementar rate limiting adicional
 # - Configurar firewall específico
 # - Monitoreo de uso de recursos`;
-    }
+  }
 
-    /**
-     * Método helper para generar configuración basada en tipo
-     */
-    static generateConfig(config: BesuNodeConfig): string {
-        switch (config.type) {
-            case BesuNodeType.BOOTNODE:
-                return this.generateBootnodeConfig(config);
-            case BesuNodeType.SIGNER:
-                return this.generateSignerConfig(config);
-            case BesuNodeType.RPC:
-                return this.generateRpcConfig(config);
-            default:
-                throw new Error(`Tipo de nodo no soportado: ${config.type}`);
+  /**
+   * Genera configuración TOML para un nodo OBSERVER
+   * Nodo que mantiene una copia de la blockchain, sin validar ni exponer RPC
+   */
+  static generateObserverConfig(config: BesuNodeConfig): string {
+    return `# ============================================
+# BESU OBSERVER NODE CONFIGURATION
+# Nodo: ${config.name}
+# Función: Mantener copia de la blockchain, sin validación ni RPC
+# Seguridad: Alta (no expone servicios ni participa en consenso)
+# ============================================
+
+# === CONFIGURACIÓN DE RED ===
+p2p-port=${P2P_PORT}
+p2p-host="${config.network.ip}"
+max-peers=25
+discovery-enabled=true
+p2p-enabled=true
+
+# Bootnodes para conectividad
+${config.options?.bootnodes ? `bootnodes=["${config.options.bootnodes}"]` : ""}
+
+# === CONFIGURACIÓN DE DATOS ===
+data-path="/data/${config.name}/data"
+genesis-file="/data/genesis.json"
+
+# === CONSENSO Y MINERÍA ===
+miner-enabled=false
+
+# === SINCRONIZACIÓN ===
+sync-mode="FULL"
+data-storage-format="BONSAI"
+
+# === SERVICIOS DESHABILITADOS ===
+rpc-http-enabled=false
+rpc-ws-enabled=false
+graphql-http-enabled=false
+
+# === SEGURIDAD ===
+node-private-key-file="/data/${config.name}/keys/key.priv"
+
+# === LOGGING Y MONITOREO ===
+logging="${config.options?.logLevel || "INFO"}"
+metrics-enabled=true
+metrics-host="127.0.0.1"
+metrics-port=9545
+
+# NOTAS:
+# - No expone RPC ni APIs públicas
+# - No participa en consenso ni minería
+# - Ideal para monitoreo, auditoría o respaldo de la cadena
+`;
+  }
+
+  /**
+   * Método helper para generar configuración basada en tipo
+   */
+  static generateConfig(config: BesuNodeConfig): string {
+    switch (config.type) {
+      case BesuNodeType.BOOTNODE:
+        return this.generateBootnodeConfig(config);
+      case BesuNodeType.SIGNER:
+        return this.generateSignerConfig(config);
+      case BesuNodeType.RPC:
+        return this.generateRpcConfig(config);
+      case BesuNodeType.OBSERVER:
+        return this.generateObserverConfig(config);
+      default:
+        throw new Error(`Tipo de nodo no soportado: ${config.type}`);
+    }
+  }
+
+  /**
+   * Método para validar configuración antes de generar TOML
+   */
+  static validateConfig(config: BesuNodeConfig): string[] {
+    const errors: string[] = [];
+
+    // Validaciones generales
+    if (!config.name) errors.push("El nombre del nodo es requerido");
+    if (!config.network.ip) errors.push("La IP del nodo es requerida");
+    if (!config.hostPort) errors.push("El puerto del nodo es requerido");
+
+    // Validaciones específicas por tipo
+    switch (config.type) {
+      case BesuNodeType.SIGNER:
+        if (!config.options?.minerCoinbase) {
+          errors.push(
+            "Signer requiere minerCoinbase (dirección del validador)"
+          );
         }
-    }
-
-    /**
-     * Método para validar configuración antes de generar TOML
-     */
-    static validateConfig(config: BesuNodeConfig): string[] {
-        const errors: string[] = [];
-
-        // Validaciones generales
-        if (!config.name) errors.push("El nombre del nodo es requerido");
-        if (!config.network.ip) errors.push("La IP del nodo es requerida");
-        if (!config.hostPort) errors.push("El puerto del nodo es requerido");
-
-        // Validaciones específicas por tipo
-        switch (config.type) {
-            case BesuNodeType.SIGNER:
-                if (!config.options?.minerCoinbase) {
-                    errors.push("Signer requiere minerCoinbase (dirección del validador)");
-                }
-                if (!config.options?.keyPath) {
-                    errors.push("Signer requiere keyPath (ruta a clave privada)");
-                }
-                break;
-            
-            case BesuNodeType.RPC:
-                if (!config.options?.bootnodes) {
-                    errors.push("RPC requiere bootnodes para sincronización");
-                }
-                break;
-            
-            case BesuNodeType.BOOTNODE:
-                // Bootnode tiene requisitos mínimos
-                break;
+        if (!config.options?.keyPath) {
+          errors.push("Signer requiere keyPath (ruta a clave privada)");
         }
-
-        return errors;
+        break;
+      case BesuNodeType.RPC:
+        if (!config.options?.bootnodes) {
+          errors.push("RPC requiere bootnodes para sincronización");
+        }
+        break;
+      case BesuNodeType.OBSERVER:
+        // OBSERVER: solo requiere datos mínimos
+        if (!config.options?.keyPath) {
+          errors.push("Observer requiere keyPath (ruta a clave privada)");
+        }
+        break;
+      case BesuNodeType.BOOTNODE:
+        // Bootnode tiene requisitos mínimos
+        break;
     }
+
+    return errors;
+  }
 }
 
-
-export function createNodeConfigurationFiles(nodeConfig: BesuNodeConfig, nodeIdentity: {
+export function createNodeConfigurationFiles(
+  nodeConfig: BesuNodeConfig,
+  nodeIdentity: {
     publicKey: string;
     privateKey: string;
     address: string;
     enode?: string;
-}) {
+  }
+) {
+  if (!nodeConfig.configPath) {
+    throw new Error("Path to store the node configuration is not defined");
+  }
+  if (!nodeConfig.options?.keyPath) {
+    throw new Error("Path to store the keys is not defined");
+  }
 
-    if (!nodeConfig.configPath) {
-        throw new Error('Path to store the node configuration is not defined');
-    }
-    if (!nodeConfig.options?.keyPath) {
-        throw new Error('Path to store the keys is not defined');
-    }
+  if (!fs.existsSync(nodeConfig.options?.keyPath)) {
+    fs.mkdirSync(nodeConfig.options?.keyPath, { recursive: true });
+  }
 
-    if (!fs.existsSync(nodeConfig.options?.keyPath)) {
-        fs.mkdirSync(nodeConfig.options?.keyPath, { recursive: true });
-    }
+  fs.writeFileSync(
+    `${nodeConfig.options?.keyPath}/key.priv`,
+    nodeIdentity.privateKey
+  );
+  fs.writeFileSync(
+    `${nodeConfig.options?.keyPath}/address`,
+    nodeIdentity.address
+  );
+  if (nodeIdentity.enode) {
+    fs.writeFileSync(
+      `${nodeConfig.options?.keyPath}/enode`,
+      nodeIdentity.enode
+    );
+  }
 
-    fs.writeFileSync(`${nodeConfig.options?.keyPath}/key.priv`, nodeIdentity.privateKey);
-    fs.writeFileSync(`${nodeConfig.options?.keyPath}/address`, nodeIdentity.address);
-    if (nodeIdentity.enode) {
-        fs.writeFileSync(`${nodeConfig.options?.keyPath}/enode`, nodeIdentity.enode);
-    }
+  const { filename, content } = generateTomlFile({
+    name: nodeConfig.name,
+    network: { name: nodeConfig.network.name, ip: nodeConfig.network.ip },
+    hostPort: nodeConfig.hostPort,
+    type: nodeConfig.type,
+    options: {
+      minerEnabled: nodeConfig.options?.minerEnabled,
+      minerCoinbase: nodeIdentity.address,
+      minGasPrice: nodeConfig.options?.minGasPrice,
+      bootnodes: nodeConfig.options?.bootnodes,
+      dataPath: nodeConfig.options?.dataPath,
+      genesisPath: nodeConfig.options?.genesisPath,
+      keyPath: nodeConfig.options?.keyPath,
+      maxMemory: nodeConfig.options?.maxMemory,
+      logLevel: nodeConfig.options?.logLevel,
+    },
+  });
 
-    const { filename, content } = generateTomlFile({
-        name: nodeConfig.name,
-        network: { name: nodeConfig.network.name, ip: nodeConfig.network.ip },
-        hostPort: nodeConfig.hostPort,
-        type: nodeConfig.type,
-        options: {
-            minerEnabled: nodeConfig.options?.minerEnabled,
-            minerCoinbase: nodeIdentity.address,
-            minGasPrice: nodeConfig.options?.minGasPrice,
-            bootnodes: nodeConfig.options?.bootnodes,
-            dataPath: nodeConfig.options?.dataPath,
-            genesisPath: nodeConfig.options?.genesisPath,
-            keyPath: nodeConfig.options?.keyPath,
-            maxMemory: nodeConfig.options?.maxMemory,
-            logLevel: nodeConfig.options?.logLevel,
-        }
-    });
+  if (!fs.existsSync(nodeConfig.configPath)) {
+    fs.mkdirSync(nodeConfig.configPath, { recursive: true });
+  }
+  fs.writeFileSync(`${nodeConfig.configPath}/${filename}`, content);
 
-    if (!fs.existsSync(nodeConfig.configPath)) {
-        fs.mkdirSync(nodeConfig.configPath, { recursive: true });
-    }
-    fs.writeFileSync(`${nodeConfig.configPath}/${filename}`, content);
-
-    return {
-        privateKeyFile: `${nodeConfig.name}/keys/key.priv`,
-        publicKeyFile: `${nodeConfig.name}/keys/key.pub`,
-        addressFile: `${nodeConfig.name}/keys/address`,
-        enodeFile: `${nodeConfig.name}/keys/enode`,
-        configFile: `${nodeConfig.name}/config/${filename}`,
-    }
-
+  return {
+    privateKeyFile: `${nodeConfig.name}/keys/key.priv`,
+    publicKeyFile: `${nodeConfig.name}/keys/key.pub`,
+    addressFile: `${nodeConfig.name}/keys/address`,
+    enodeFile: `${nodeConfig.name}/keys/enode`,
+    configFile: `${nodeConfig.name}/config/${filename}`,
+  };
 }
 
 // Función helper para generar y guardar configs
-export function generateTomlFile(config: BesuNodeConfig): { content: string, filename: string, errors: string[] } {
-    const errors = BesuTomlConfigFactory.validateConfig(config);
-    
-    if (errors.length > 0) {
-        return { content: '', filename: '', errors };
-    }
+export function generateTomlFile(config: BesuNodeConfig): {
+  content: string;
+  filename: string;
+  errors: string[];
+} {
+  const errors = BesuTomlConfigFactory.validateConfig(config);
 
-    const content = BesuTomlConfigFactory.generateConfig(config);
-    const filename = `config-${config.name}.toml`;
-    
-    return { content, filename, errors: []};
+  if (errors.length > 0) {
+    return { content: "", filename: "", errors };
+  }
+
+  const content = BesuTomlConfigFactory.generateConfig(config);
+  const filename = `config-${config.name}.toml`;
+
+  return { content, filename, errors: [] };
 }
-

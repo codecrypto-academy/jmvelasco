@@ -1,117 +1,123 @@
+import { Buffer } from "buffer";
 import type Docker from "dockerode";
-import { ensureNetworkExists } from "./ensureNetworkExists";
-import path from "path";
+import pkg from "elliptic";
 import fs from "fs";
+import keccak256 from "keccak256";
+import path from "path";
+import { P2P_PORT } from "../constants";
 import { createCliqueGenesisFile } from "./cliqueGenesisFile";
-import pkg from 'elliptic';
+import { ensureNetworkExists } from "./ensureNetworkExists";
 const { ec: EC } = pkg;
-import { Buffer } from 'buffer';
-import keccak256 from 'keccak256';
-import { P2P_PORT } from '../constants';
 
-
-export async function initializeBlockchainNetwork(docker: Docker, chainId: number, networkOptions: {
+export async function initializeBlockchainNetwork(
+  docker: Docker,
+  chainId: number,
+  networkOptions: {
     name: string;
     subnet: string;
     gateway: string;
     bootnodeIp: string;
     signerIp: string;
-}) {
-    const { name, subnet, gateway, bootnodeIp, signerIp } = networkOptions;
-    const dockerNetworkId = await ensureNetworkExists(docker,
-        {
-            name,
-            subnet,
-            gateway
-        }
-    );
+    preAllocatedAccounts?: {
+      address: string;
+      balance: string;
+    }[];
+  }
+) {
+  const { name, subnet, gateway, bootnodeIp, signerIp } = networkOptions;
+  const dockerNetworkId = await ensureNetworkExists(docker, {
+    name,
+    subnet,
+    gateway,
+  });
 
-    const blockchainDataPath = path.join(process.cwd(), name);
-    if (fs.existsSync(blockchainDataPath)) {
-        try {
-            fs.rmSync(blockchainDataPath, { recursive: true, force: true });
-            if (fs.existsSync(blockchainDataPath)) {
-                console.error(`Failed to remove blockchain data at: ${blockchainDataPath}`);
-            } else {
-                console.log(`Successfully removed existing blockchain data at: ${blockchainDataPath}`);
-            }
-        } catch (err) {
-            console.error(`Error removing blockchain data at ${blockchainDataPath}:`, err);
-        }
+  const blockchainDataPath = path.join(process.cwd(), name);
+  if (fs.existsSync(blockchainDataPath)) {
+    try {
+      fs.rmSync(blockchainDataPath, { recursive: true, force: true });
+      if (fs.existsSync(blockchainDataPath)) {
+        console.error(
+          `Failed to remove blockchain data at: ${blockchainDataPath}`
+        );
+      } else {
+        console.log(
+          `Successfully removed existing blockchain data at: ${blockchainDataPath}`
+        );
+      }
+    } catch (err) {
+      console.error(
+        `Error removing blockchain data at ${blockchainDataPath}:`,
+        err
+      );
     }
+  }
 
-    const signer = generateSignerAccount(signerIp);
-    const bootnode = bootnodeIp ? generateBootnodeAccount(bootnodeIp) : null;
-    const userAccounts = generateUserAccounts(5);
-    const genesisFilePath = createCliqueGenesisFile(blockchainDataPath, {
-        chainId,
-        initialValidators: [`0x${signer.address}`],
-        preAllocatedAccounts: [
-            { address: `0x${signer.address}`, balance: '0xad78ebc5ac6200000' },
-            { address: `0x${userAccounts[0].address}`, balance: '0xad78ebc5ac6200000' },
-            { address: `0x${userAccounts[1].address}`, balance: '0xad78ebc5ac6200000' },
-            { address: `0x${userAccounts[2].address}`, balance: '0xad78ebc5ac6200000' },
-            { address: `0x${userAccounts[3].address}`, balance: '0xad78ebc5ac6200000' },
-            { address: `0x${userAccounts[4].address}`, balance: '0xad78ebc5ac6200000' },
-        ],
-    });
+  const bootnode = bootnodeIp ? generateBootnodeAccount(bootnodeIp) : null;
+  const signer = generateSignerAccount(signerIp);
+  const genesisFilePath = createCliqueGenesisFile(blockchainDataPath, {
+    chainId,
+    initialValidators: [`0x${signer.address}`],
+    preAllocatedAccounts: [
+      { address: `0x${signer.address}`, balance: "0xad78ebc5ac6200000" },
+      ...(networkOptions.preAllocatedAccounts || []),
+    ],
+  });
 
-    return {
-        blockchainDataPath,
-        dockerNetworkId,
-        genesisFilePath,
-        signer,
-        bootnode
-    };
+  return {
+    blockchainDataPath,
+    dockerNetworkId,
+    genesisFilePath,
+    signer,
+    bootnode,
+  };
 }
 
-
 export function generateNodeIdentity(ip: string) {
-    const { publicKey, privateKey } = generateKeyPair();
-    const publicKeyHash = publicKey.slice(2);
-    const pubKeyBuffer = keccak256(Buffer.from(publicKeyHash, 'hex'));
-    return {
-        privateKey,
-        publicKey,
-        address: pubKeyBuffer.toString("hex").slice(-40),
-        enode: `enode://${publicKeyHash}@${ip}:${P2P_PORT}`
-    }
+  const { publicKey, privateKey } = generateKeyPair();
+  const publicKeyHash = publicKey.slice(2);
+  const pubKeyBuffer = keccak256(Buffer.from(publicKeyHash, "hex"));
+  return {
+    privateKey,
+    publicKey,
+    address: pubKeyBuffer.toString("hex").slice(-40),
+    enode: `enode://${publicKeyHash}@${ip}:${P2P_PORT}`,
+  };
 }
 
 function generateKeyPair() {
-    const ec = new EC('secp256k1');
-    const keyPair = ec.genKeyPair();
-    const privateKey = keyPair.getPrivate('hex');
-    const publicKey = keyPair.getPublic('hex');
-    return { publicKey, privateKey };
+  const ec = new EC("secp256k1");
+  const keyPair = ec.genKeyPair();
+  const privateKey = keyPair.getPrivate("hex");
+  const publicKey = keyPair.getPublic("hex");
+  return { publicKey, privateKey };
 }
 
 function generateUserAccounts(count: number) {
-    return Array.from({ length: count }, () => {
-        const identity = generateNodeIdentity('0.0.0.0'); // IP dummy
-        return {
-            privateKey: identity.privateKey,
-            address: identity.address
-        };
-    });
+  return Array.from({ length: count }, () => {
+    const identity = generateNodeIdentity("0.0.0.0"); // IP dummy
+    return {
+      privateKey: identity.privateKey,
+      address: identity.address,
+    };
+  });
 }
 
 function generateSignerAccount(signerIp: string) {
-    const identity = generateNodeIdentity(signerIp); // IP dummy
-    return {
-        publicKey: identity.publicKey,
-        privateKey: identity.privateKey,
-        address: identity.address,
-        enode: identity.enode
-    };
+  const identity = generateNodeIdentity(signerIp); // IP dummy
+  return {
+    publicKey: identity.publicKey,
+    privateKey: identity.privateKey,
+    address: identity.address,
+    enode: identity.enode,
+  };
 }
 
 function generateBootnodeAccount(ip: string) {
-    const identity = generateNodeIdentity(ip);
-    return {
-        publicKey: identity.publicKey,
-        privateKey: identity.privateKey,
-        address: identity.address,
-        enode: identity.enode
-    };
+  const identity = generateNodeIdentity(ip);
+  return {
+    publicKey: identity.publicKey,
+    privateKey: identity.privateKey,
+    address: identity.address,
+    enode: identity.enode,
+  };
 }
