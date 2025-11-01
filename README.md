@@ -495,6 +495,34 @@ npm run build    # Build for production
 
 ---
 
+### 6. **Supply Chain Tracker**
+
+**Location**: `/supply-chain`
+
+#### **Description**
+Supply Chain Tracker is a full-stack blockchain DApp for transparent, secure product traceability across supply chains. It features role-based dashboards for Producers, Factories, Retailers, Consumers, and Admins, enabling tokenized asset management, controlled transfers, and complete product lineage visualization. The architecture is dashboard-centric, providing real-time updates and comprehensive audit trails for all supply chain actions.
+
+#### **Technology Stack**
+- **Smart Contracts**: Solidity, Foundry
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS
+- **Web3 Integration**: ethers.js, MetaMask
+
+#### **Features**
+- Role-based registration and approval (Admin workflow)
+- Tokenization of raw materials and products
+- Controlled transfer flows (Producer → Factory → Retailer → Consumer)
+- Real-time event-driven updates
+- Full traceability and product history visualization
+- Responsive, role-specific dashboards
+
+#### **Status**
+- **MVP Complete**: All core dashboards and flows implemented and tested
+- **Producer, Factory, Retailer, Consumer, Admin panels**: Fully functional
+- **Comprehensive test suite**: 217+ tests passing
+- **Premium supply chain overview widget**: Implemented for Producer and Factory roles
+- **Production-ready**: Ready for deployment
+
+
 ## 📋 Project Status
 
 ### ✅ Completed Projects
@@ -503,6 +531,7 @@ npm run build    # Build for production
 - Cryptographic Tools
 - E-commerce Project Structure
 - Hyperledger Besu Library
+- Supply Chain Tracker (MVP Complete)
 
 ### 🔄 In Progress Projects
 - Blockchain Manager Web Interface
