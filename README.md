@@ -53,6 +53,9 @@ This repository includes several local blockchain networks configured for MetaMa
 
 **Location**: `/backend` + `/front`
 
+#### **Disclaimer**
+This project is 100% out of the scope and guidance form the academy. It has been part of my own interest to practice a closest experience to the real world than just using a database driver.
+
 #### **Description**
 Full-stack application for managing cryptocurrency wallet contacts with user authentication, contact management, and blockchain integration.
 
