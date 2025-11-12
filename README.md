@@ -173,7 +173,7 @@ npm test
 
 ---
 
-### 2. **Blockchain Manager**
+### 2. **Blockchain Manager (PFM25)**
 
 **Location**: `/blockchain-manager`
 
@@ -498,7 +498,7 @@ npm run build    # Build for production
 
 ---
 
-### 6. **Supply Chain Tracker**
+### 6. **Supply Chain Tracker (PFM30)**
 
 **Location**: `/supply-chain`
 
